@@ -1,0 +1,60 @@
+/* マスの基本設定 */
+td {
+    position: relative;
+    height: 40px;
+    /* 適切な高さに調整 */
+}
+
+/* インジケーターのコンテナ */
+.task-indicators {
+    position: absolute;
+    bottom: 3px;
+    left: 1px;
+    right: 1px;
+    display: flex;
+    gap: 2px;
+    justify-content: left;
+}
+
+/* 角丸ドットの基本スタイル */
+.task-indicators span {
+    width: 5px;
+    height: 5px;
+    border-radius: 0%;
+    /* ここで角丸（円形）にする */
+    display: inline-block;
+}
+
+/* 作業別カラー（背景とドットの両方で使う） */
+
+/* 水やり */
+.bg-task-water {
+    background-color: #e7f5ff !important;
+}
+
+/* 除草 */
+.dot-task-weed {
+    background-color: #40c057 !important;
+}
+/* 防虫・消毒 */
+.dot-task-pest_control {
+    background-color: #645745 !important;
+}
+
+/*　芽かき・間引き */
+.dot-task-pruning {
+    background-color: #74c0fc !important;
+}
+
+/* 追肥 */
+.dot-task-fertilize {
+    background-color: #f3f0ff !important;
+}
+/* 収穫 */
+.dot-task-harvest {
+    background-color: #fff0f6 !important;
+}
+/* その他 */
+.dot-task-other {
+    background-color: #ffe3e3 !important;
+}

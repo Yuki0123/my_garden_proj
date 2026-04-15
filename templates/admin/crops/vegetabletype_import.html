@@ -1,0 +1,19 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div class="module">
+    <h1>VegetableType 一括インポート</h1>
+    <p>CSV と任意の ZIP ファイルをアップロードして、VegetableType をまとめて登録します。</p>
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      <table>
+        {{ form.as_table }}
+      </table>
+      <div class="submit-row">
+        <input type="submit" value="インポート" class="default" />
+        <a href="../" class="button">戻る</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

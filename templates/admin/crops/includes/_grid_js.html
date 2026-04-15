@@ -1,0 +1,123 @@
+<script>
+    const dailyLogsRaw = document.getElementById('daily-logs').textContent;
+    const dailyLogs = JSON.parse(dailyLogsRaw);
+
+    function initializeLogAppearance() {
+        // ここでログの見た目を初期化するコードを書く（必要なら）
+        // 全体のログを表示するコンテナ（HTMLに <div id="daily-log-container"></div> などを用意）
+        const dailyLogContainer = document.getElementById('daily-log-container');
+
+        if (dailyLogs && dailyLogs.length > 0) {
+            dailyLogContainer.innerHTML = dailyLogs.map(log => {
+                const isYou = log.user === "{{ request.user.username }}";
+                const userColor = isYou ? "#007bff" : "#28a745";
+                const userIcon = isYou ? "👩‍💻" : "👨‍🌾";
+
+                // 区画リストをバッジ形式にする
+                const plotsHtml = log.plots.length > 0
+                    ? `<div style="margin-top: 4px;">
+            ${log.plots.map(p => `<span style="background:#e9ecef; padding:2px 6px; border-radius:10px; font-size:0.7em; margin-right:4px; border:1px solid #dee2e6;">${p}</span>`).join('')}
+            </div>`
+                    : '';
+
+                return `
+        <div class="log-item" style="border-left: 4px solid ${userColor}; background: #fff; margin-bottom: 10px; padding: 8px 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; font-size: 0.75em; color: #666;">
+                <span>🕒 ${log.worked_at}</span>
+                <span>${userIcon} ${log.user}</span>
+            </div>
+            <div style="font-weight: bold; margin: 4px 0; color: #333;">
+                ${log.task_display}
+            </div>
+            ${plotsHtml} ${log.note ? `<p style="margin:4px 0 0 0; font-size:0.85em; color:#555; border-top: 1px dotted #ccc; padding-top:4px;">${log.note}</p>` : ''}
+        </div>
+    `;
+            }).join('');
+
+
+
+
+
+        } else {
+            dailyLogContainer.innerHTML = '<p style="text-align:center; color:#999; font-size:0.85em;">この日の記録はありません</p>';
+        }
+    }
+
+</script>
+{# admin/crops/_grid_js.html #}
+<script>
+    // 1. データの安全なパース
+    const allPlotIds = JSON.parse(document.getElementById('all-plot-ids').textContent);
+    const plotData = JSON.parse(document.getElementById('plot-data').textContent);
+    
+    const table = document.getElementById('garden-grid');
+
+    const taskSlugs = {
+        '水やり': 'water',
+        '除草': 'weed',
+        '防虫・消毒': 'pest_control',
+        '追肥': 'fertilize',
+        '芽かき・間引き': 'pruning',
+        'その他': 'other',
+        '収穫': 'harvest'
+    };
+
+
+    // 2. グリッドの見た目を初期化する共通関数
+    function initializeGridAppearance() {
+        document.querySelectorAll('.garden-table td').forEach(cell => {
+            const r = cell.dataset.r;
+            const c = cell.dataset.c;
+            const key = `${r}-${c}`;
+            const plotId = allPlotIds[key];
+            
+            if (plotId) cell.dataset.id = plotId;
+
+            const info = plotData[key];
+            if (info) {
+                
+                if (info.maintenance && info.maintenance.length > 0) {
+                    const badge = document.createElement('div');
+                    // 1. 最優先の作業で背景色を塗る（例：最後の作業）
+                    const priorityTask = info.maintenance[info.maintenance.length - 1].task;
+                    //cell.classList.add(`bg-task-${taskSlugs[priorityTask]}`);
+
+                    // 2. インジケーター用のコンテナを作成
+                    const indicatorContainer = document.createElement('div');
+                    indicatorContainer.className = 'task-indicators';
+
+                    // 3. 全ての作業をドット（または線）として追加
+                    info.maintenance.forEach(m => {
+                        const dot = document.createElement('span');
+                        dot.className = `dot-task-${taskSlugs[m.task]}`;
+                        console.log('Adding dot for task:', m.task, 'with class:', dot.className);
+                        indicatorContainer.appendChild(dot);
+                    });
+
+                    cell.appendChild(indicatorContainer);
+                    cell.title = info.maintenance.map(m => `${m.user}: ${m.task}`).join('\n');
+                }
+                if (info.soil_status) cell.classList.add('soil-' + info.soil_status);
+                if (info.is_bed) cell.classList.add('is-bed');
+
+                if (info.crop_name) {
+                    cell.classList.add('has-crop');
+                    cell.title = info.crop_name;
+                    if (info.crop_icon_url) {
+                        const img = document.createElement('img');
+                        img.src = info.crop_icon_url;
+                        cell.appendChild(img);
+                    }
+                }
+
+
+            }
+        });
+    }
+
+    // 共通の選択解除
+    function clearSelection() {
+        document.querySelectorAll('.selecting').forEach(el => el.classList.remove('selecting'));
+    }
+</script>
+

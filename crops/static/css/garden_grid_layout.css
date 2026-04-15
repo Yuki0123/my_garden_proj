@@ -1,0 +1,8 @@
+    /* 耕うん済：茶色 */
+    .soil-plowed { background-color: rgba(139, 69, 19, 0.4) !important; }
+    /* 石灰投入済：白 */
+    .soil-limed { background-color: rgba(245, 245, 245, 0.8) !important; border: 1px dashed #ccc; }
+    /* 堆肥投入済：濃い茶色 */
+    .soil-manured { background-color: rgba(62, 39, 35, 0.5) !important; }
+    /* マルチ展開中：黒・グレー */
+    .soil-mulched { background-color: rgba(51, 51, 51, 0.6) !important; }

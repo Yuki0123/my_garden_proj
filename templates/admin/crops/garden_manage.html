@@ -1,0 +1,286 @@
+{% extends "admin/base_site.html" %}
+{% load static %} 
+
+{% block extrahead %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/garden_grid.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'css/garden_grid_maintainance.css' %}">
+{% endblock %}
+
+{# --- メインコンテンツのブロック --- #}
+{% block content %}
+<h1>{{ instance.name }} レイアウト編集</h1>
+
+<div id="selection-info" style="margin-bottom: 10px; font-weight: bold; color: #007bff;">
+    範囲を選択してください（ドラッグ可）
+</div>
+
+
+
+<div class="calendar-nav" style="margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+    <label>表示する日付を選択:</label>
+    <input type="date" id="view-date" value="{{ selected_date }}">
+    <span style="font-size: 0.85em; color: #666;">（日付を変えると自動で切り替わります）</span>
+</div>
+
+<div id="daily-log-section" style="margin-top: 20px;">
+    <h4 style="border-bottom: 2px solid #28a745; padding-bottom: 5px;">📅 <span id="daily-log-title">本日の作業一覧</span></h4>
+    <div id="daily-log-container" style="max-height: 400px; overflow-y: auto; padding: 5px;">
+    </div>
+</div>
+<div id="manage-panel">
+</div>
+
+
+{{ plot_json|json_script:"plot-data" }}
+{{ v_type_list|json_script:"v-type-data" }}
+{{ all_plot_ids_dict|json_script:"all-plot-ids" }}
+{{ daily_logs|json_script:"daily-logs" }}
+
+{% include "admin/crops/includes/_grid.html" %}
+{% include "admin/crops/includes/_grid_js.html" %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // === 1. 初期化・データ準備 ===
+    initializeGridAppearance();
+    initializeLogAppearance();
+
+    // JSONデータのパース（一箇所で管理）
+    const vTypeRaw = document.getElementById('v-type-data').textContent;
+    const vTypes = JSON.parse(vTypeRaw);
+    
+    // DOM要素のキャッシュ
+    const elements = {
+        table: document.getElementById('garden-grid'),
+        cropModal: document.getElementById('crop-modal'),
+        picker: document.getElementById('v-type-picker'),
+        typeIdInput: document.getElementById('selected-type-id'),
+        submitBtn: document.getElementById('plant-submit-btn'),
+        spacingPreview: document.getElementById('spacing-preview'),
+        viewDate: document.getElementById('view-date'),
+        modalPlotIds: document.getElementById('modal-plot-ids')
+    };
+
+    let state = { isDown: false, startCell: null, wasDrag: false };
+
+    // === 2. UI初期化 (アイコンピッカーなど) ===
+    const initIconPicker = () => {
+        if (!elements.picker) return;
+        elements.picker.innerHTML = '';
+        vTypes.forEach(vt => {
+            const div = document.createElement('div');
+            div.className = 'v-option';
+            div.innerHTML = `${vt.icon_url ? `<img src="${vt.icon_url}">` : '🌱'}<span style="font-size:10px;">${vt.name}</span>`;
+            div.onclick = () => {
+                document.querySelectorAll('.v-option').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                elements.typeIdInput.value = vt.id;
+                elements.submitBtn.disabled = false;
+                elements.spacingPreview.innerText = `推奨: ${vt.spacing}cm`;
+            };
+            elements.picker.appendChild(div);
+        });
+    };
+
+    initIconPicker();
+
+    // === 3. イベントリスナー (操作系) ===
+
+    // グリッドのマウス操作
+    elements.table.addEventListener('mousedown', e => {
+        const td = e.target.closest('td');
+        if (!td) return;
+        state.isDown = true;
+        state.startCell = td;
+        clearSelection();
+        td.classList.add('selecting');
+    });
+
+    elements.table.addEventListener('mouseover', e => {
+        if (!state.isDown) return;
+        const td = e.target.closest('td');
+        if (!td) return;
+        clearSelection();
+        renderSelection(state.startCell, td);
+    });
+
+    window.addEventListener('mouseup', async e=> {
+        if (!state.isDown) return;
+        state.isDown = false;
+        const endCell = e.target.closest('td') || state.startCell;
+        
+        setFormValues(state.startCell, endCell);
+        const selectedTds = elements.table.querySelectorAll('.selecting');
+        if (selectedTds.length === 0) return;
+
+        // --- ここから Manage画面用のロジック ---
+        
+        // 1. 詳細パネルを更新 (updateDetailPanel)
+        // 範囲選択なら、最初の1マス（または選択範囲のサマリー）の情報を出す
+        await showMaintenancePanel(selectedTds);
+
+
+    });
+
+    // ボタンクリック
+    elements.viewDate.addEventListener('change', (e) => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('date', e.target.value);
+        window.location.href = url.toString();
+    });
+
+});
+
+
+    // === 4. モーダル・補助関数 ===
+
+    function openCropModal(selectedTds) {
+        const plotIds = Array.from(selectedTds).map(td => td.dataset.id).filter(id => id);
+        if (plotIds.length === 0) return;
+
+        const hasAnyCrop = Array.from(selectedTds).some(td => td.classList.contains('has-crop'));
+        elements.modalPlotIds.value = JSON.stringify(plotIds);
+        document.getElementById('target-coord').innerText = `${plotIds.length} マス選択中`;
+
+        // UIリセット
+        elements.typeIdInput.value = '';
+        elements.submitBtn.disabled = true;
+        document.getElementById('delete-crop-btn').style.display = hasAnyCrop ? 'inline-block' : 'none';
+        elements.picker.style.display = hasAnyCrop ? 'none' : 'grid';
+        elements.submitBtn.style.display = hasAnyCrop ? 'none' : 'inline-block';
+
+        elements.cropModal.style.display = 'block';
+    }
+
+    // 保存実行
+
+    async function apiPost(url, data) {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+            body: JSON.stringify(data)
+        });
+        if (resp.ok) location.reload();
+    }
+
+    // --- 補助関数：選択範囲を青く塗る ---
+    function renderSelection(s, e) {
+        const r1 = parseInt(s.dataset.r), r2 = parseInt(e.dataset.r);
+        const c1 = parseInt(s.dataset.c), c2 = parseInt(e.dataset.c);
+        const rStart = Math.min(r1, r2), rEnd = Math.max(r1, r2);
+        const cStart = Math.min(c1, c2), cEnd = Math.max(c1, c2);
+        for (let r = rStart; r <= rEnd; r++) {
+            for (let c = cStart; c <= cEnd; c++) {
+                const target = document.getElementById(`p-${r}-${c}`);
+                if (target) target.classList.add('selecting');
+            }
+        }
+    }
+
+    // --- 補助関数：選択した座標を画面のテキストに表示する ---
+    function setFormValues(s, e) {
+        const r1 = parseInt(s.dataset.r), r2 = parseInt(e.dataset.r);
+        const c1 = parseInt(s.dataset.c), c2 = parseInt(e.dataset.c);
+        const rStart = Math.min(r1, r2), rEnd = Math.max(r1, r2);
+        const cStart = Math.min(c1, c2), cEnd = Math.max(c1, c2);
+        const infoEl = document.getElementById('selection-info');
+        if (infoEl) {
+            infoEl.innerText = `選択: (${rStart},${cStart})～(${rEnd},${cEnd})`;
+        }
+    }
+
+    // 詳細パネルを更新する関数
+    async function showMaintenancePanel(selectedTds) {
+        //const plotId = td.dataset.id;
+        //const r = td.dataset.r;
+        //const c = td.dataset.c;
+        const plotIds = Array.from(selectedTds).map(td => td.dataset.id).filter(id => id);
+        
+        const panelContent = document.getElementById('manage-panel');
+
+        panelContent.innerHTML = ''; // 既存の内容をクリア
+        // 1. 先にフォームの見た目だけ定義しておく（どこでも使えるように）
+        const formHtml = `
+            <hr style="margin: 20px 0; border: none; border-top: 2px solid #eee;">
+            <div id="maintenance-form" style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                <h4 style="margin-top: 0; color: #2c3e50;">🌱 お世話を記録 (${plotIds.length}件)</h4>
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 0.8em; color: #666;">作業内容</label>
+                    <select id="task_type" style="width: 100%; padding: 8px; border-radius: 4px;">
+                        <option value="watering">水やり</option>
+                        <option value="fertilizing">追肥</option>
+                        <option value="weeding">除草</option>
+                        <option value="pruning">芽かき・間引き</option>
+                        <option value="pest_control">防虫・消毒</option>
+                        <option value="harvesting">収穫</option>
+                        <option value="other">その他</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 0.8em; color: #666;">備考</label>
+                    <textarea id="task_note" rows="2" style="width: 100%; padding: 8px; font-size: 0.9em;"></textarea>
+                </div>
+                <button onclick="saveMaintenance()" id="save-btn" style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; font-weight: bold;">
+                    保存する
+                </button>
+            </div>
+        `;
+
+        panelContent.insertAdjacentHTML('beforeend', formHtml);
+    }
+
+    async function saveMaintenance() {
+        const taskType = document.getElementById('task_type').value;
+        const note = document.getElementById('task_note').value;
+        const btn = document.getElementById('save-btn');
+        const date = document.getElementById('view-date').value;
+
+        // 1. 選択されているプロットのIDをすべて取得（常に配列）
+        const plotIds = Array.from(table.querySelectorAll('.selecting'))
+            .map(td => td.dataset.id)
+            .filter(id => id);
+
+        if (plotIds.length === 0) {
+            alert("保存対象のプロットが選択されていません。");
+            return;
+        }
+        
+        // 二重送信防止
+        btn.disabled = true;
+        btn.innerText = '保存中...';
+
+        try {
+            const response = await fetch("{% url 'admin:save-maintenance' instance.pk %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    task_type: taskType,
+                    plot_ids: plotIds,
+                    note: note,
+                    date: date
+                })
+            });
+            const result = await response.json();
+            console.log("DEBUG: API response", result);
+            if (result && result.status === 'success') {
+                // 履歴を再読み込みして、最新の状態にする
+                const selectedTds = document.querySelectorAll('.selecting');
+                location.reload();
+            } else {
+                throw new Error('保存に失敗しました');
+            }
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = '保存する';
+        }
+    }
+
+</script>
+
+{% endblock %}

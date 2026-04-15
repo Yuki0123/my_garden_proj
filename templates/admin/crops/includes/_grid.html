@@ -1,0 +1,14 @@
+<div class="grid-wrapper">
+    <table class="garden-table" id="garden-grid">
+        {% for r in grid_range_rows %}
+        <tr>
+            {% for c in grid_range_cols %}
+            <td id="p-{{ r }}-{{ c }}" 
+                data-r="{{ r }}" 
+                data-c="{{ c }}"
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+</div>

@@ -1,0 +1,291 @@
+{% extends "admin/base_site.html" %}
+{% load static %} 
+
+{% block extrahead %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/garden_grid.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'css/garden_grid_layout.css' %}">
+{% endblock %}
+
+{# --- メインコンテンツのブロック --- #}
+{% block content %}
+<h1>{{ instance.name }} レイアウト編集</h1>
+
+<div id="selection-info" style="margin-bottom: 10px; font-weight: bold; color: #007bff;">
+    範囲を選択してください（ドラッグ可）
+</div>
+
+<div class="mode-selector" style="margin-bottom: 15px; padding: 10px; background: #eee; border-radius: 5px;">
+    <strong>操作モード:</strong>
+    <label><input type="radio" name="edit-mode" value="soil" checked> 土づくり (Soil Status)</label>
+    <label><input type="radio" name="edit-mode" value="bed" style="margin-left:15px;"> 畝立て (Bed)</label>
+
+    <div id="soil-options" style="margin-top: 10px; padding-left: 20px;">
+        状態:
+        <select id="soil-type-select">
+            <option value="plowed">耕うん済</option>
+            <option value="limed">石灰投入済</option>
+            <option value="manured">堆肥投入済</option>
+            <option value="mulched">マルチ展開中</option>
+        </select>
+        <button type="button" id="save-soil-btn" class="button" style="background: #8b4513; color: white; margin-left: 10px;">
+            この範囲の土づくりを登録
+        </button>
+
+        <div id="soil-legend" style="margin-top: 10px; display: flex; gap: 15px; font-size: 0.85em; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 15px; height: 15px; background-color: rgba(139, 69, 19, 0.4); border: 1px solid #8b4513;"></div>
+                <span>耕うん済 (Plowed)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 15px; height: 15px; background-color: rgba(245, 245, 245, 0.8); border: 1px dashed #ccc;"></div>
+                <span>石灰投入済 (Limed)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 15px; height: 15px; background-color: rgba(62, 39, 35, 0.5); border: 1px solid #3e2723;"></div>
+                <span>堆肥投入済 (Manured)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 15px; height: 15px; background-color: rgba(51, 51, 51, 0.6); border: 1px solid #333;"></div>
+                <span>マルチ展開中 (Mulched)</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="bed-options" style="display: none; margin-top: 10px; padding-left: 20px;">
+        畝名（任意）: <input type="text" id="new-bed-name" placeholder="例: 2026年A-1">
+        <button type="button" id="create-new-bed-btn" class="button">
+            選択範囲を新しい畝として登録
+        </button>
+    </div>
+
+    {# 畝立てモード用フォーム（既存の畝への割り当て）は非表示のまま保持 #}
+    <form id="grid-form" method="post" action="{% url 'admin:assign-grid-range' instance.pk %}" style="display:none; margin-top: 10px; padding-left: 20px;">
+        {% csrf_token %}
+        <input type="hidden" name="r_start" id="id_r_start">
+        <input type="hidden" name="r_end" id="id_r_end">
+        <input type="hidden" name="c_start" id="id_c_start">
+        <input type="hidden" name="c_end" id="id_c_end">
+
+        <select name="bed_id" id="id_bed_select">
+            <option value="">-- 割り当てる畝を選択 --</option>
+            {% for bed in instance.beds.all %}
+                <option value="{{ bed.id }}">{{ bed.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" name="mode" value="assign" class="button">選択範囲を畝にする</button>
+        <button type="submit" name="mode" value="clear" class="button" style="background: #ba2121; color: white;">選択範囲の畝を解除</button>
+    </form>
+</div>
+
+
+<div class="calendar-nav" style="margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+    <label>表示する日付を選択:</label>
+    <input type="date" id="view-date" value="{{ selected_date }}">
+    <span style="font-size: 0.85em; color: #666;">（日付を変えると自動で切り替わります）</span>
+</div>
+
+<div id="crop-modal" style="display:none; position:fixed; top:20%; left:50%; transform:translateX(-50%); background:white; padding:20px; border:2px solid #333; z-index:1000; width: 320px;">
+    <h3 style="margin-top:0;">植え付け: <span id="target-coord"></span></h3>
+
+    <label>野菜を選択:</label>
+    <div id="v-type-picker"></div>
+
+    <form method="post" action="{% url 'admin:plant-crop' instance.pk %}" id="crop-form">
+        {% csrf_token %}
+        {# [修正] row/col の代わりに plot_ids JSON配列を送信 #}
+        <input type="hidden" name="modal-plot-ids" id="modal-plot-ids">
+        <input type="hidden" name="vegetable_type_id" id="selected-type-id" required>
+        <input type="hidden" name="mode" id="modal-mode" value="plant">
+
+        <p>植付日: <input type="date" name="planted_at" value="{% now 'Y-m-d' %}" style="width:100%;"></p>
+
+        <div id="spacing-preview" style="font-size: 11px; color: #666; margin-bottom: 10px;"></div>
+
+        <div style="text-align: right; display: flex; justify-content: space-between;">
+            <button type="button" onclick="document.getElementById('crop-modal').style.display='none'" class="button" style="background:#ccc;">キャンセル</button>
+            <div>
+                <button type="submit" id="plant-submit-btn" name="mode" value="plant" class="button" disabled>登録</button>
+                <button type="submit" id="delete-crop-btn" name="mode" value="delete" class="button"
+                    style="display:none; background:#ba2121; color:white;">削除</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+{{ plot_json|json_script:"plot-data" }}
+{{ v_type_list|json_script:"v-type-data" }}
+{{ all_plot_ids_dict|json_script:"all-plot-ids" }}
+
+{% include "admin/crops/includes/_grid.html" %}
+{% include "admin/crops/includes/_grid_js.html" %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // === 1. 初期化・データ準備 ===
+    initializeGridAppearance();
+    
+    // JSONデータのパース（一箇所で管理）
+    const vTypeRaw = document.getElementById('v-type-data').textContent;
+    const vTypes = JSON.parse(vTypeRaw);
+    
+    // DOM要素のキャッシュ
+    const elements = {
+        table: document.getElementById('garden-grid'),
+        cropModal: document.getElementById('crop-modal'),
+        picker: document.getElementById('v-type-picker'),
+        typeIdInput: document.getElementById('selected-type-id'),
+        submitBtn: document.getElementById('plant-submit-btn'),
+        spacingPreview: document.getElementById('spacing-preview'),
+        viewDate: document.getElementById('view-date'),
+        modalPlotIds: document.getElementById('modal-plot-ids')
+    };
+
+    let state = { isDown: false, startCell: null, wasDrag: false };
+
+    // === 2. UI初期化 (アイコンピッカーなど) ===
+    const initIconPicker = () => {
+        if (!elements.picker) return;
+        elements.picker.innerHTML = '';
+        vTypes.forEach(vt => {
+            const div = document.createElement('div');
+            div.className = 'v-option';
+            div.innerHTML = `${vt.icon_url ? `<img src="${vt.icon_url}">` : '🌱'}<span style="font-size:10px;">${vt.name}</span>`;
+            div.onclick = () => {
+                document.querySelectorAll('.v-option').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                elements.typeIdInput.value = vt.id;
+                elements.submitBtn.disabled = false;
+                elements.spacingPreview.innerText = `推奨: ${vt.spacing}cm`;
+            };
+            elements.picker.appendChild(div);
+        });
+    };
+    initIconPicker();
+
+    // === 3. イベントリスナー (操作系) ===
+
+    // モード切替ラジオボタン
+    document.querySelectorAll('input[name="edit-mode"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const isSoil = radio.value === 'soil';
+            document.getElementById('soil-options').style.display = isSoil ? 'block' : 'none';
+            document.getElementById('bed-options').style.display = isSoil ? 'none' : 'block';
+        });
+    });
+
+    // グリッドのマウス操作
+    elements.table.addEventListener('mousedown', e => {
+        const td = e.target.closest('td');
+        if (!td) return;
+        state.isDown = true;
+        state.startCell = td;
+        clearSelection();
+        td.classList.add('selecting');
+    });
+
+    elements.table.addEventListener('mouseover', e => {
+        if (!state.isDown) return;
+        const td = e.target.closest('td');
+        if (!td) return;
+        clearSelection();
+        renderSelection(state.startCell, td);
+    });
+
+    window.addEventListener('mouseup', e => {
+        if (!state.isDown) return;
+        state.isDown = false;
+        const endCell = e.target.closest('td') || state.startCell;
+        
+        setFormValues(state.startCell, endCell);
+        const selectedTds = elements.table.querySelectorAll('.selecting');
+        if (selectedTds.length === 0) return;
+
+        // モーダルを開くかどうかの判定
+        const hasCrop = Array.from(selectedTds).some(td => td.classList.contains('has-crop'));
+        const isBed = state.startCell.classList.contains('is-bed');
+        if (hasCrop || isBed) openCropModal(selectedTds);
+    });
+
+    // ボタンクリック
+    document.getElementById('save-soil-btn').addEventListener('click', () => executeSave('soil'));
+    document.getElementById('create-new-bed-btn').addEventListener('click', () => executeSave('bed'));
+    elements.viewDate.addEventListener('change', (e) => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('date', e.target.value);
+        window.location.href = url.toString();
+    });
+
+    // === 4. モーダル・補助関数 ===
+    function openCropModal(selectedTds) {
+        const plotIds = Array.from(selectedTds).map(td => td.dataset.id).filter(id => id);
+        if (plotIds.length === 0) return;
+
+        const hasAnyCrop = Array.from(selectedTds).some(td => td.classList.contains('has-crop'));
+        elements.modalPlotIds.value = JSON.stringify(plotIds);
+        document.getElementById('target-coord').innerText = `${plotIds.length} マス選択中`;
+
+        // UIリセット
+        elements.typeIdInput.value = '';
+        elements.submitBtn.disabled = true;
+        document.getElementById('delete-crop-btn').style.display = hasAnyCrop ? 'inline-block' : 'none';
+        elements.picker.style.display = hasAnyCrop ? 'none' : 'grid';
+        elements.submitBtn.style.display = hasAnyCrop ? 'none' : 'inline-block';
+
+        elements.cropModal.style.display = 'block';
+    }
+
+    // 保存実行
+    async function executeSave(forcedMode) {
+        const mode = forcedMode || document.querySelector('input[name="edit-mode"]:checked').value;
+        const plotIds = Array.from(elements.table.querySelectorAll('.selecting')).map(td => td.dataset.id).filter(id => id);
+        const date = elements.viewDate.value;
+
+        if (mode === 'bed') {
+            const bedName = document.getElementById('new-bed-name').value;
+            if (!confirm("新しい畝を作成しますか？")) return;
+            await apiPost("{% url 'admin:assign-grid-range' instance.pk %}", {mode: 'create_bed', plot_ids: plotIds, bed_name: bedName, date: date});
+        } else {
+            const statusType = document.getElementById('soil-type-select').value;
+            if (!confirm(`${statusType} を登録しますか？`)) return;
+            await apiPost("{% url 'admin:assign-soil-status' instance.pk %}", {plot_ids: plotIds, status_type: statusType, date: date});
+        }
+    }
+
+    async function apiPost(url, data) {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+            body: JSON.stringify(data)
+        });
+        if (resp.ok) location.reload();
+    }
+
+    // --- 補助関数：選択範囲を青く塗る ---
+    function renderSelection(s, e) {
+        const r1 = parseInt(s.dataset.r), r2 = parseInt(e.dataset.r);
+        const c1 = parseInt(s.dataset.c), c2 = parseInt(e.dataset.c);
+        const rStart = Math.min(r1, r2), rEnd = Math.max(r1, r2);
+        const cStart = Math.min(c1, c2), cEnd = Math.max(c1, c2);
+        for (let r = rStart; r <= rEnd; r++) {
+            for (let c = cStart; c <= cEnd; c++) {
+                const target = document.getElementById(`p-${r}-${c}`);
+                if (target) target.classList.add('selecting');
+            }
+        }
+    }
+
+    // --- 補助関数：選択した座標を画面のテキストに表示する ---
+    function setFormValues(s, e) {
+        const r1 = parseInt(s.dataset.r), r2 = parseInt(e.dataset.r);
+        const c1 = parseInt(s.dataset.c), c2 = parseInt(e.dataset.c);
+        const rStart = Math.min(r1, r2), rEnd = Math.max(r1, r2);
+        const cStart = Math.min(c1, c2), cEnd = Math.max(c1, c2);
+        const infoEl = document.getElementById('selection-info');
+        if (infoEl) {
+            infoEl.innerText = `選択: (${rStart},${cStart})～(${rEnd},${cEnd})`;
+        }
+    }
+});
+</script>
+
+{% endblock %}

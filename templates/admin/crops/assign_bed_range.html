@@ -1,0 +1,10 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<form action="" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <p>指定した範囲内のすべてのマスが、選択した畝に紐付けられます。</p>
+    <input type="hidden" name="action" value="assign_plots_to_bed" />
+    <input type="submit" name="apply" value="一括更新を実行" class="default" />
+</form>
+{% endblock %}

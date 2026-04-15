@@ -1,0 +1,71 @@
+    .grid-wrapper { overflow: auto; max-height: 75vh; border: 2px solid #444; cursor: crosshair; position: relative; }
+    .garden-table { border-collapse: collapse; table-layout: fixed; user-select: none; }
+    .garden-table td {
+        width: 15px; height: 15px; border: 1px solid #eee; padding: 0;
+        position: relative;
+        overflow: visible;
+        background-color: #eee;
+    }
+
+    /* 状態別の色 */
+    .is-bed { background-color: #ffc107 !important; }
+    .is-crop { background-color: #ffc107; }
+
+    /* ドラッグ中の選択範囲 */
+    .selecting { background-color: rgba(0, 123, 255, 0.5) !important; }
+
+    /* アイコン表示用のスタイル */
+    .garden-table td img {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 30px;
+        height: 30px;
+        object-fit: contain;
+        display: block;
+        z-index: 10;
+    }
+
+    .has-crop { position: relative; }
+    .has-crop img {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 30px;
+        height: 30px;
+        z-index: 10;
+    }
+
+    /* 野菜アイコン選択エリア */
+    #v-type-picker {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+        gap: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 10px;
+        border: 1px solid #ddd;
+        background: #fdfdfd;
+        margin-bottom: 15px;
+    }
+    .v-option {
+        text-align: center;
+        padding: 5px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        border-radius: 4px;
+        transition: 0.2s;
+    }
+    .v-option:hover { background: #f0f0f0; }
+    .v-option.selected {
+        border-color: #264b5d;
+        background: #e7f3ff;
+    }
+    .v-option img {
+        width: 32px; height: 32px; object-fit: contain; display: block; margin: 0 auto;
+    }
+    .v-option span {
+        display: block; font-size: 10px; margin-top: 3px; line-height: 1.2;
+    }
