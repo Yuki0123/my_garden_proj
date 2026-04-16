@@ -120,220 +120,194 @@
 {% include "admin/crops/includes/_grid_js.html" %}
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    // === 1. 初期化・データ準備 ===
-    initializeGridAppearance();
-    
+    document.addEventListener('DOMContentLoaded', () => {
+        // === 1. 基本設定と要素の取得 ===
+        initializeGridAppearance();
 
+        const elements = {
+            table: document.getElementById('garden-grid'),
+            cropModal: document.getElementById('crop-modal'),
+            picker: document.getElementById('v-type-picker'),
+            typeIdInput: document.getElementById('selected-type-id'),
+            submitBtn: document.getElementById('plant-submit-btn'),
+            spacingPreview: document.getElementById('spacing-preview'),
+            viewDate: document.getElementById('view-date'),
+            modalPlotIds: document.getElementById('modal-plot-ids')
+        };
 
-    // DOM要素のキャッシュ
-    const elements = {
-        table: document.getElementById('garden-grid'),
-        cropModal: document.getElementById('crop-modal'),
-        picker: document.getElementById('v-type-picker'),
-        typeIdInput: document.getElementById('selected-type-id'),
-        submitBtn: document.getElementById('plant-submit-btn'),
-        spacingPreview: document.getElementById('spacing-preview'),
-        viewDate: document.getElementById('view-date'),
-        modalPlotIds: document.getElementById('modal-plot-ids')
-    };
+        if (!elements.table) return; // テーブルがなければ終了
 
-    let state = { isDown: false, startCell: null, wasDrag: false };
-    // 1. スタイルでタッチ操作によるスクロールを抑制（重要！）
-    elements.table.style.touchAction = 'none';
-    elements.table.style.userSelect = 'none';
-    elements.table.style.webkitUserSelect = 'none';
+        let state = { isDown: false, startCell: null, wasDrag: false };
 
-    // 2. イベントを統合管理するヘルパー
-    function getEventTarget(e) {
-        // タッチイベントの場合は指の座標から要素を取得、マウスなら e.target
-        if (e.touches && e.touches.length > 0) {
-            return document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-        }
-        return e.target;
-    }
+        // スマホでのスクロール暴走を止める
+        elements.table.style.touchAction = 'none';
+        elements.table.style.userSelect = 'none';
+        elements.table.style.webkitUserSelect = 'none';
 
-    // 開始
-    const handleStart = (e) => {
-        const target = getEventTarget(e);
-        const td = target ? target.closest('td') : null;
-        if (!td) return;
-
-        state.isDown = true;
-        state.startCell = td;
-        clearSelection();
-        td.classList.add('selecting');
-    };
-
-    // ドラッグ中
-    const handleMove = (e) => {
-        if (!state.isDown) return;
-        const target = getEventTarget(e);
-        const td = target ? target.closest('td') : null;
-
-        if (td && td.closest('#garden-grid')) {
-            clearSelection();
-            renderSelection(state.startCell, td);
-        }
-    };
-
-    // 終了
-    const handleEnd = (e) => {
-        if (!state.isDown) return;
-        state.isDown = false;
-
-        const selectedTds = elements.table.querySelectorAll('.selecting');
-        if (selectedTds.length === 0) return;
-
-        // モーダル等を開く既存のロジック
-        if (typeof showMaintenancePanel === 'function') {
-            showMaintenancePanel(selectedTds);
-        } else {
-            openCropModal(selectedTds);
-        }
-    };
-
-    // 3. マウスとタッチの両方にイベントを登録
-    elements.table.addEventListener('mousedown', handleStart);
-    window.addEventListener('mousemove', handleMove); // windowに貼ると枠外でも反応して安心
-    window.addEventListener('mouseup', handleEnd);
-
-    elements.table.addEventListener('touchstart', handleStart);
-    elements.table.addEventListener('touchmove', handleMove);
-    elements.table.addEventListener('touchend', handleEnd);
-
-
-    // JSONデータのパース（一箇所で管理）
-    const vTypeRaw = document.getElementById('v-type-data').textContent;
-    const vTypeElement = document.getElementById('v-type-data');
-    let vTypes = [];
-
-    if (vTypeElement && vTypeElement.textContent.trim() !== "") {
+        // === 2. データのパース (エラーが出ても無視する仕組み) ===
+        let vTypes = [];
         try {
-            vTypes = JSON.parse(vTypeElement.textContent);
+            const vTypeElement = document.getElementById('v-type-data');
+            if (vTypeElement && vTypeElement.textContent.trim() !== "") {
+                vTypes = JSON.parse(vTypeElement.textContent);
+            }
         } catch (e) {
-            console.error("JSON parse error:", e);
+            console.warn("データ読み込みエラー（無視して続行します）:", e);
         }
-    } else {
-        // 本番スマホでここを通っている可能性大
-        console.warn("v-type-data not found yet. Check if data exists in DB.");
-    }
-    // ------------------------------------
 
+        // === 3. イベント管理ヘルパー (スマホ/PC共通) ===
+        function getEventTarget(e) {
+            if (e.touches && e.touches.length > 0) {
+                return document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+            }
+            return e.target;
+        }
 
-    // === 2. UI初期化 (アイコンピッカーなど) ===
-    const initIconPicker = () => {
-        if (!elements.picker) return;
-        elements.picker.innerHTML = '';
-        vTypes.forEach(vt => {
-            const div = document.createElement('div');
-            div.className = 'v-option';
-            div.innerHTML = `${vt.icon_url ? `<img src="${vt.icon_url}">` : '🌱'}<span style="font-size:10px;">${vt.name}</span>`;
-            div.onclick = () => {
-                document.querySelectorAll('.v-option').forEach(el => el.classList.remove('selected'));
-                div.classList.add('selected');
-                elements.typeIdInput.value = vt.id;
-                elements.submitBtn.disabled = false;
-                elements.spacingPreview.innerText = `推奨: ${vt.spacing}cm`;
+        const handleStart = (e) => {
+            const target = getEventTarget(e);
+            const td = target ? target.closest('td') : null;
+            if (!td) return;
+            state.isDown = true;
+            state.startCell = td;
+            clearSelection();
+            td.classList.add('selecting');
+        };
+
+        const handleMove = (e) => {
+            if (!state.isDown) return;
+            const target = getEventTarget(e);
+            const td = target ? target.closest('td') : null;
+            if (td && td.closest('#garden-grid')) {
+                clearSelection();
+                renderSelection(state.startCell, td);
+            }
+        };
+
+        const handleEnd = (e) => {
+            if (!state.isDown) return;
+            state.isDown = false;
+            const selectedTds = elements.table.querySelectorAll('.selecting');
+            if (selectedTds.length === 0) return;
+
+            // モーダル等を開く (関数が存在するか確認してから呼ぶ)
+            if (typeof showMaintenancePanel === 'function') {
+                showMaintenancePanel(selectedTds);
+            } else {
+                openCropModal(selectedTds);
+            }
+        };
+
+        // イベント登録
+        elements.table.addEventListener('mousedown', handleStart);
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleEnd);
+        elements.table.addEventListener('touchstart', handleStart, { passive: false });
+        elements.table.addEventListener('touchmove', handleMove, { passive: false });
+        elements.table.addEventListener('touchend', handleEnd);
+
+        // === 4. UI初期化 (関数として定義して、エラーを防ぐ) ===
+        const initIconPicker = () => {
+            if (!elements.picker || vTypes.length === 0) return;
+            elements.picker.innerHTML = '';
+            vTypes.forEach(vt => {
+                const div = document.createElement('div');
+                div.className = 'v-option';
+                div.innerHTML = `${vt.icon_url ? `<img src="${vt.icon_url}">` : '🌱'}<span style="font-size:10px;">${vt.name}</span>`;
+                div.onclick = () => {
+                    document.querySelectorAll('.v-option').forEach(el => el.classList.remove('selected'));
+                    div.classList.add('selected');
+                    elements.typeIdInput.value = vt.id;
+                    elements.submitBtn.disabled = false;
+                    elements.spacingPreview.innerText = `推奨: ${vt.spacing}cm`;
+                };
+                elements.picker.appendChild(div);
+            });
+        };
+        initIconPicker();
+
+        // モード切替
+        document.querySelectorAll('input[name="edit-mode"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const isSoil = radio.value === 'soil';
+                const soilOpts = document.getElementById('soil-options');
+                const bedOpts = document.getElementById('bed-options');
+                if (soilOpts) soilOpts.style.display = isSoil ? 'block' : 'none';
+                if (bedOpts) bedOpts.style.display = isSoil ? 'none' : 'block';
+            });
+        });
+
+        // 各種ボタン (存在確認をしながら登録)
+        const soilBtn = document.getElementById('save-soil-btn');
+        if (soilBtn) soilBtn.onclick = () => executeSave('soil');
+
+        const bedBtn = document.getElementById('create-new-bed-btn');
+        if (bedBtn) bedBtn.onclick = () => executeSave('bed');
+
+        if (elements.viewDate) {
+            elements.viewDate.onchange = (e) => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('date', e.target.value);
+                window.location.href = url.toString();
             };
-            elements.picker.appendChild(div);
-        });
-    };
-    initIconPicker();
-
-    // === 3. イベントリスナー (操作系) ===
-    
-    // モード切替ラジオボタン
-    document.querySelectorAll('input[name="edit-mode"]').forEach(radio => {
-        radio.addEventListener('change', () => {
-            const isSoil = radio.value === 'soil';
-            document.getElementById('soil-options').style.display = isSoil ? 'block' : 'none';
-            document.getElementById('bed-options').style.display = isSoil ? 'none' : 'block';
-        });
-    });
-
-
-
-    // ボタンクリック
-    document.getElementById('save-soil-btn').addEventListener('click', () => executeSave('soil'));
-    document.getElementById('create-new-bed-btn').addEventListener('click', () => executeSave('bed'));
-    elements.viewDate.addEventListener('change', (e) => {
-        const url = new URL(window.location.href);
-        url.searchParams.set('date', e.target.value);
-        window.location.href = url.toString();
-    });
-
-    // === 4. モーダル・補助関数 ===
-    function openCropModal(selectedTds) {
-        const plotIds = Array.from(selectedTds).map(td => td.dataset.id).filter(id => id);
-        if (plotIds.length === 0) return;
-
-        const hasAnyCrop = Array.from(selectedTds).some(td => td.classList.contains('has-crop'));
-        elements.modalPlotIds.value = JSON.stringify(plotIds);
-        document.getElementById('target-coord').innerText = `${plotIds.length} マス選択中`;
-
-        // UIリセット
-        elements.typeIdInput.value = '';
-        elements.submitBtn.disabled = true;
-        document.getElementById('delete-crop-btn').style.display = hasAnyCrop ? 'inline-block' : 'none';
-        elements.picker.style.display = hasAnyCrop ? 'none' : 'grid';
-        elements.submitBtn.style.display = hasAnyCrop ? 'none' : 'inline-block';
-
-        elements.cropModal.style.display = 'block';
-    }
-
-    // 保存実行
-    async function executeSave(forcedMode) {
-        const mode = forcedMode || document.querySelector('input[name="edit-mode"]:checked').value;
-        const plotIds = Array.from(elements.table.querySelectorAll('.selecting')).map(td => td.dataset.id).filter(id => id);
-        const date = elements.viewDate.value;
-
-        if (mode === 'bed') {
-            const bedName = document.getElementById('new-bed-name').value;
-            if (!confirm("新しい畝を作成しますか？")) return;
-            await apiPost("{% url 'admin:assign-grid-range' instance.pk %}", {mode: 'create_bed', plot_ids: plotIds, bed_name: bedName, date: date});
-        } else {
-            const statusType = document.getElementById('soil-type-select').value;
-            if (!confirm(`${statusType} を登録しますか？`)) return;
-            await apiPost("{% url 'admin:assign-soil-status' instance.pk %}", {plot_ids: plotIds, status_type: statusType, date: date});
         }
-    }
 
-    async function apiPost(url, data) {
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-            body: JSON.stringify(data)
-        });
-        if (resp.ok) location.reload();
-    }
+        // --- 補助関数 (スコープを DOMContentLoaded 内に収めて安全にする) ---
+        function openCropModal(selectedTds) {
+            const plotIds = Array.from(selectedTds).map(td => td.dataset.id).filter(id => id);
+            if (plotIds.length === 0) return;
+            const hasAnyCrop = Array.from(selectedTds).some(td => td.classList.contains('has-crop'));
+            elements.modalPlotIds.value = JSON.stringify(plotIds);
+            const coordText = document.getElementById('target-coord');
+            if (coordText) coordText.innerText = `${plotIds.length} マス選択中`;
+            elements.typeIdInput.value = '';
+            elements.submitBtn.disabled = true;
+            const delBtn = document.getElementById('delete-crop-btn');
+            if (delBtn) delBtn.style.display = hasAnyCrop ? 'inline-block' : 'none';
+            elements.picker.style.display = hasAnyCrop ? 'none' : 'grid';
+            elements.submitBtn.style.display = hasAnyCrop ? 'none' : 'inline-block';
+            elements.cropModal.style.display = 'block';
+        }
 
-    // --- 補助関数：選択範囲を青く塗る ---
-    function renderSelection(s, e) {
-        const r1 = parseInt(s.dataset.r), r2 = parseInt(e.dataset.r);
-        const c1 = parseInt(s.dataset.c), c2 = parseInt(e.dataset.c);
-        const rStart = Math.min(r1, r2), rEnd = Math.max(r1, r2);
-        const cStart = Math.min(c1, c2), cEnd = Math.max(c1, c2);
-        for (let r = rStart; r <= rEnd; r++) {
-            for (let c = cStart; c <= cEnd; c++) {
-                const target = document.getElementById(`p-${r}-${c}`);
-                if (target) target.classList.add('selecting');
+        async function executeSave(forcedMode) {
+            const checkedMode = document.querySelector('input[name="edit-mode"]:checked');
+            const mode = forcedMode || (checkedMode ? checkedMode.value : 'soil');
+            const plotIds = Array.from(elements.table.querySelectorAll('.selecting')).map(td => td.dataset.id).filter(id => id);
+            const date = elements.viewDate.value;
+            if (mode === 'bed') {
+                const bedNameInput = document.getElementById('new-bed-name');
+                const bedName = bedNameInput ? bedNameInput.value : "";
+                if (!confirm("新しい畝を作成しますか？")) return;
+                await apiPost("{% url 'admin:assign-grid-range' instance.pk %}", { mode: 'create_bed', plot_ids: plotIds, bed_name: bedName, date: date });
+            } else {
+                const soilSelect = document.getElementById('soil-type-select');
+                const statusType = soilSelect ? soilSelect.value : "";
+                if (!confirm(`${statusType} を登録しますか？`)) return;
+                await apiPost("{% url 'admin:assign-soil-status' instance.pk %}", { plot_ids: plotIds, status_type: statusType, date: date });
             }
         }
-    }
 
-    // --- 補助関数：選択した座標を画面のテキストに表示する ---
-    function setFormValues(s, e) {
-        const r1 = parseInt(s.dataset.r), r2 = parseInt(e.dataset.r);
-        const c1 = parseInt(s.dataset.c), c2 = parseInt(e.dataset.c);
-        const rStart = Math.min(r1, r2), rEnd = Math.max(r1, r2);
-        const cStart = Math.min(c1, c2), cEnd = Math.max(c1, c2);
-        const infoEl = document.getElementById('selection-info');
-        if (infoEl) {
-            infoEl.innerText = `選択: (${rStart},${cStart})～(${rEnd},${cEnd})`;
+        async function apiPost(url, data) {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify(data)
+            });
+            if (resp.ok) location.reload();
         }
-    }
-});
+
+        function renderSelection(s, e) {
+            const r1 = parseInt(s.dataset.r), r2 = parseInt(e.dataset.r);
+            const c1 = parseInt(s.dataset.c), c2 = parseInt(e.dataset.c);
+            const rStart = Math.min(r1, r2), rEnd = Math.max(r1, r2);
+            const cStart = Math.min(c1, c2), cEnd = Math.max(c1, c2);
+            for (let r = rStart; r <= rEnd; r++) {
+                for (let c = cStart; c <= cEnd; c++) {
+                    const target = document.getElementById(`p-${r}-${c}`);
+                    if (target) target.classList.add('selecting');
+                }
+            }
+        }
+    });
 </script>
 
 {% endblock %}
