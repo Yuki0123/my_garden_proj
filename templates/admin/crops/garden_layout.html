@@ -126,8 +126,22 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // JSONデータのパース（一箇所で管理）
     const vTypeRaw = document.getElementById('v-type-data').textContent;
-    const vTypes = JSON.parse(vTypeRaw);
-    
+    const vTypeElement = document.getElementById('v-type-data');
+    let vTypes = [];
+
+    if (vTypeElement && vTypeElement.textContent.trim() !== "") {
+        try {
+            vTypes = JSON.parse(vTypeElement.textContent);
+        } catch (e) {
+            console.error("JSON parse error:", e);
+        }
+    } else {
+        // 本番スマホでここを通っている可能性大
+        console.warn("v-type-data not found yet. Check if data exists in DB.");
+    }
+    // ------------------------------------
+
+
     // DOM要素のキャッシュ
     const elements = {
         table: document.getElementById('garden-grid'),
