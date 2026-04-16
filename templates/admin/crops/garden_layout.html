@@ -176,46 +176,66 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. スタイルでタッチ操作によるスクロールを抑制（重要！）
     elements.table.style.touchAction = 'none';
     elements.table.style.userSelect = 'none';
+    elements.table.style.webkitUserSelect = 'none';
 
-    // グリッドのマウス操作
-    elements.table.addEventListener('pointerdown', e => {
-        const td = e.target.closest('td');
+    // 2. イベントを統合管理するヘルパー
+    function getEventTarget(e) {
+        // タッチイベントの場合は指の座標から要素を取得、マウスなら e.target
+        if (e.touches && e.touches.length > 0) {
+            return document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+        }
+        return e.target;
+    }
+
+    // 開始
+    const handleStart = (e) => {
+        const target = getEventTarget(e);
+        const td = target ? target.closest('td') : null;
         if (!td) return;
+
         state.isDown = true;
         state.startCell = td;
         clearSelection();
         td.classList.add('selecting');
+    };
 
-        // 指を離した時だけでなく、外に出た時も追いかける準備
-        elements.table.setPointerCapture(e.pointerId);
-    });
-
-    elements.table.addEventListener('pointermove', e => {
+    // ドラッグ中
+    const handleMove = (e) => {
         if (!state.isDown) return;
-        
-        // 現在のポインター位置にある要素を取得
-        const target = document.elementFromPoint(e.clientX, e.clientY);
+        const target = getEventTarget(e);
         const td = target ? target.closest('td') : null;
 
-        if (!td) return;
-        clearSelection();
-        renderSelection(state.startCell, td);
-    });
+        if (td && td.closest('#garden-grid')) {
+            clearSelection();
+            renderSelection(state.startCell, td);
+        }
+    };
 
-    window.addEventListener('pointerup', e => {
+    // 終了
+    const handleEnd = (e) => {
         if (!state.isDown) return;
         state.isDown = false;
-        const endCell = e.target.closest('td') || state.startCell;
-        
-        setFormValues(state.startCell, endCell);
+
         const selectedTds = elements.table.querySelectorAll('.selecting');
         if (selectedTds.length === 0) return;
 
-        // モーダルを開くかどうかの判定
-        const hasCrop = Array.from(selectedTds).some(td => td.classList.contains('has-crop'));
-        const isBed = state.startCell.classList.contains('is-bed');
-        if (hasCrop || isBed) openCropModal(selectedTds);
-    });
+        // モーダル等を開く既存のロジック
+        if (typeof showMaintenancePanel === 'function') {
+            showMaintenancePanel(selectedTds);
+        } else {
+            openCropModal(selectedTds);
+        }
+    };
+
+    // 3. マウスとタッチの両方にイベントを登録
+    elements.table.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove); // windowに貼ると枠外でも反応して安心
+    window.addEventListener('mouseup', handleEnd);
+
+    elements.table.addEventListener('touchstart', handleStart);
+    elements.table.addEventListener('touchmove', handleMove);
+    elements.table.addEventListener('touchend', handleEnd);
+
 
     // ボタンクリック
     document.getElementById('save-soil-btn').addEventListener('click', () => executeSave('soil'));
