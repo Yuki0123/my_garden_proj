@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initIconPicker();
 
     // === 3. イベントリスナー (操作系) ===
-
+    
     // モード切替ラジオボタン
     document.querySelectorAll('input[name="edit-mode"]').forEach(radio => {
         radio.addEventListener('change', () => {
@@ -173,8 +173,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // 1. スタイルでタッチ操作によるスクロールを抑制（重要！）
+    elements.table.style.touchAction = 'none';
+
     // グリッドのマウス操作
-    elements.table.addEventListener('mousedown', e => {
+    elements.table.addEventListener('pointerdown', e => {
         const td = e.target.closest('td');
         if (!td) return;
         state.isDown = true;
@@ -183,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         td.classList.add('selecting');
     });
 
-    elements.table.addEventListener('mouseover', e => {
+    elements.table.addEventListener('pointerenter', e => {
         if (!state.isDown) return;
         const td = e.target.closest('td');
         if (!td) return;
@@ -191,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSelection(state.startCell, td);
     });
 
-    window.addEventListener('mouseup', e => {
+    window.addEventListener('pointerup', e => {
         if (!state.isDown) return;
         state.isDown = false;
         const endCell = e.target.closest('td') || state.startCell;
