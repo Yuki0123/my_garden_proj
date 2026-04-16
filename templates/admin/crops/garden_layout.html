@@ -124,22 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // === 1. 初期化・データ準備 ===
     initializeGridAppearance();
     
-    // JSONデータのパース（一箇所で管理）
-    const vTypeRaw = document.getElementById('v-type-data').textContent;
-    const vTypeElement = document.getElementById('v-type-data');
-    let vTypes = [];
-
-    if (vTypeElement && vTypeElement.textContent.trim() !== "") {
-        try {
-            vTypes = JSON.parse(vTypeElement.textContent);
-        } catch (e) {
-            console.error("JSON parse error:", e);
-        }
-    } else {
-        // 本番スマホでここを通っている可能性大
-        console.warn("v-type-data not found yet. Check if data exists in DB.");
-    }
-    // ------------------------------------
 
 
     // DOM要素のキャッシュ
@@ -155,38 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let state = { isDown: false, startCell: null, wasDrag: false };
-
-    // === 2. UI初期化 (アイコンピッカーなど) ===
-    const initIconPicker = () => {
-        if (!elements.picker) return;
-        elements.picker.innerHTML = '';
-        vTypes.forEach(vt => {
-            const div = document.createElement('div');
-            div.className = 'v-option';
-            div.innerHTML = `${vt.icon_url ? `<img src="${vt.icon_url}">` : '🌱'}<span style="font-size:10px;">${vt.name}</span>`;
-            div.onclick = () => {
-                document.querySelectorAll('.v-option').forEach(el => el.classList.remove('selected'));
-                div.classList.add('selected');
-                elements.typeIdInput.value = vt.id;
-                elements.submitBtn.disabled = false;
-                elements.spacingPreview.innerText = `推奨: ${vt.spacing}cm`;
-            };
-            elements.picker.appendChild(div);
-        });
-    };
-    initIconPicker();
-
-    // === 3. イベントリスナー (操作系) ===
-    
-    // モード切替ラジオボタン
-    document.querySelectorAll('input[name="edit-mode"]').forEach(radio => {
-        radio.addEventListener('change', () => {
-            const isSoil = radio.value === 'soil';
-            document.getElementById('soil-options').style.display = isSoil ? 'block' : 'none';
-            document.getElementById('bed-options').style.display = isSoil ? 'none' : 'block';
-        });
-    });
-
     // 1. スタイルでタッチ操作によるスクロールを抑制（重要！）
     elements.table.style.touchAction = 'none';
     elements.table.style.userSelect = 'none';
@@ -249,6 +201,57 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.table.addEventListener('touchstart', handleStart);
     elements.table.addEventListener('touchmove', handleMove);
     elements.table.addEventListener('touchend', handleEnd);
+
+
+    // JSONデータのパース（一箇所で管理）
+    const vTypeRaw = document.getElementById('v-type-data').textContent;
+    const vTypeElement = document.getElementById('v-type-data');
+    let vTypes = [];
+
+    if (vTypeElement && vTypeElement.textContent.trim() !== "") {
+        try {
+            vTypes = JSON.parse(vTypeElement.textContent);
+        } catch (e) {
+            console.error("JSON parse error:", e);
+        }
+    } else {
+        // 本番スマホでここを通っている可能性大
+        console.warn("v-type-data not found yet. Check if data exists in DB.");
+    }
+    // ------------------------------------
+
+
+    // === 2. UI初期化 (アイコンピッカーなど) ===
+    const initIconPicker = () => {
+        if (!elements.picker) return;
+        elements.picker.innerHTML = '';
+        vTypes.forEach(vt => {
+            const div = document.createElement('div');
+            div.className = 'v-option';
+            div.innerHTML = `${vt.icon_url ? `<img src="${vt.icon_url}">` : '🌱'}<span style="font-size:10px;">${vt.name}</span>`;
+            div.onclick = () => {
+                document.querySelectorAll('.v-option').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                elements.typeIdInput.value = vt.id;
+                elements.submitBtn.disabled = false;
+                elements.spacingPreview.innerText = `推奨: ${vt.spacing}cm`;
+            };
+            elements.picker.appendChild(div);
+        });
+    };
+    initIconPicker();
+
+    // === 3. イベントリスナー (操作系) ===
+    
+    // モード切替ラジオボタン
+    document.querySelectorAll('input[name="edit-mode"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const isSoil = radio.value === 'soil';
+            document.getElementById('soil-options').style.display = isSoil ? 'block' : 'none';
+            document.getElementById('bed-options').style.display = isSoil ? 'none' : 'block';
+        });
+    });
+
 
 
     // ボタンクリック
