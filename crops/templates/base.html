@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}My Garden{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.5/dist/css/uikit.min.css" />
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+
+    <nav class="uk-navbar-container" uk-navbar>
+        <div class="uk-navbar-left">
+            <a class="uk-navbar-item uk-logo" href="/">My Garden</a>
+        </div>
+        <div class="uk-navbar-right">
+            <ul class="uk-navbar-nav uk-visible@m">
+                <li><a href="/">ホーム</a></li>
+                <li><a href="{% url 'admin:index' %}">管理画面</a></li>
+                <li><a href="{% url 'logout' %}">ログアウト</a></li>
+            </ul>
+            <a class="uk-navbar-toggle uk-hidden@m" uk-navbar-toggle-icon uk-toggle="target: #offcanvas-menu"></a>
+        </div>
+    </nav>
+
+    <div class="uk-container uk-margin-top">
+        {% block content %}{% endblock %}
+    </div>
+
+    <div id="offcanvas-menu" uk-offcanvas="flip: true; overlay: true">
+        <div class="uk-offcanvas-bar">
+            <button class="uk-offcanvas-close" type="button" uk-close></button>
+            <ul class="uk-nav uk-nav-default">
+                <li class="uk-nav-header">メニュー</li>
+                <li><a href="/">ホーム</a></li>
+                <li><a href="{% url 'admin:index' %}">管理画面</a></li>
+                <li class="uk-nav-divider"></li>
+                <li><a href="{% url 'logout' %}">ログアウト</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.21.5/dist/js/uikit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.21.5/dist/js/uikit-icons.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

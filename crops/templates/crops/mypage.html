@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="uk-section uk-section-xsmall">
+    <div class="uk-container">
+        <h1 class="uk-heading-bullet">マイガーデン</h1>
+        <p>ようこそ、{{ user.username }}さん！</p>
+        {% if garden %}
+        <div class="uk-grid-match uk-child-width-1-2@m" uk-grid>
+            <div>
+                <div class="uk-card uk-card-default uk-card-body">
+                    <h3 class="uk-card-title uk-text-success">
+                        <span uk-icon="icon: origin"></span> {{ garden.name }}
+                    </h3>
+                    <p class="uk-text-meta">サイズ: {{ garden.rows }} 行 × {{ garden.cols }} 列</p>
+                    <hr class="uk-divider-small">
+                    <p>ここに現在の畑のサマリーを表示予定です。</p>
+                    <a href="{% url 'admin:crops_gardenarea_change' garden.id %}" class="uk-button uk-button-text">
+                        Adminで詳しく見る
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <div class="uk-card uk-card-secondary uk-card-body">
+                    <h3 class="uk-card-title">作業クイックアクセス</h3>
+                    <ul class="uk-list uk-list-bullet">
+                        <li>今日の作業予定: なし</li>
+                        <li>最終メンテナンス: 3日前</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="uk-margin-large-top">
+            <div class="uk-card uk-card-default uk-card-body uk-width-1-1">
+                <h4 class="uk-card-title">畑のレイアウト</h4>
+                <div class="uk-placeholder uk-text-center">
+                    ここに 70 × 180 のグリッドを読み込みます
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="uk-alert-warning" uk-alert>
+            <p>畑のデータが見つかりませんでした。AdminでGardenAreaを作成してください。</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
