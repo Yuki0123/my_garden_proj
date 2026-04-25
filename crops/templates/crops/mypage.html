@@ -36,9 +36,12 @@
         <div class="uk-margin-large-top">
             <div class="uk-card uk-card-default uk-card-body uk-width-1-1">
                 <h4 class="uk-card-title">畑のレイアウト</h4>
-                    <canvas id="garden-canvas" width="100%"></canvas>
 
-                
+                <div id="canvas-wrapper"
+                    style="width: 100%; overflow-x: auto; background-color: #f8f8f8; border: 1px solid #ddd; line-height: 0;">
+                    <canvas id="garden-canvas" style="display: block; margin: 0 auto;"></canvas>
+                </div>
+
                 <script id="plot-data-json" type="application/json">
                     {{ plot_json|safe }}
                 </script>
