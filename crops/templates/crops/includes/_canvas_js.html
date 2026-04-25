@@ -74,7 +74,7 @@
                         ctx.fillStyle = isAlternateSection ? '#E0E0E0' : '#F5F5F5';
                     }
 
-                    ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+                    ctx.fillRect(x, y, cellSize - 0.5, cellSize - 0.5); // セルの境界を少し空ける
 
                     if (plot && plot.crop) {
                         ctx.fillStyle = '#2ECC71'; // 作物（緑）
