@@ -4,7 +4,7 @@
         width: 15px; height: 15px; border: 1px solid #eee; padding: 0;
         position: relative;
         overflow: visible;
-        background-color: #eee;
+        background-color: #fff;
     }
 
     /* 状態別の色 */

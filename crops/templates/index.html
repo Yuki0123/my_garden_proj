@@ -9,4 +9,102 @@
 <div class="uk-card uk-card-default uk-card-body">
     <p>（ここに、あのグリッドを移植していきます！）</p>
 </div>
+
+<div class="uk-grid-small uk-child-width-1-1" uk-grid>
+    {% for row in rows %}
+    <div class="garden-row-item">
+        <div class="uk-card uk-card-default uk-card-small uk-card-body uk-flex uk-flex-middle">
+            <span class="uk-badge uk-margin-small-right">{{ row.number }}</span>
+
+            <div class="uk-flex-1">
+                {% if row.current_crop %}
+                <span class="uk-text-bold">{{ row.current_crop.name }}</span>
+                <span class="uk-text-meta uk-margin-small-left">{{ row.current_crop.start_date }}〜</span>
+                {% else %}
+                <span class="uk-text-muted">空き（準備完了）</span>
+                {% endif %}
+            </div>
+
+            <button class="uk-button uk-button-primary uk-button-small" type="button">記録</button>
+
+            <div uk-dropdown="mode: click">
+                <ul class="uk-nav uk-dropdown-nav">
+                    <li class="uk-nav-header">アクションを選択</li>
+                    <li><a href="#modal-plant" uk-toggle><span uk-icon="icon: plus"></span> 新しく植え付け</a></li>
+                    <li><a href="#modal-care" uk-toggle><span uk-icon="icon: check"></span> お世話の記録</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="uk-section uk-section-xsmall">
+    <div class="uk-margin-bottom">
+        <ul class="uk-subnav uk-subnav-pill" uk-switcher>
+            <li><a href="#">手前（1-6m）</a></li>
+            <li><a href="#">奥（7-18m）</a></li>
+        </ul>
+    </div>
+
+    <div class="garden-map-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <div class="garden-grid"
+            style="display: grid; grid-template-columns: repeat(180, 25px); grid-template-rows: repeat(70, 25px); gap: 1px; background: #ddd;">
+
+            {% for plot in plots %}
+            <div class="plot-cell"
+                style="grid-column: {{ plot.x }}; grid-row: {{ plot.y }}; background: {{ plot.color }};"
+                uk-toggle="target: #modal-action" data-plot-id="{{ plot.id }}">
+                {% if plot.crop %}<span class="uk-text-center uk-display-block" style="font-size: 12px;">🍅</span>{%
+                endif %}
+            </div>
+            {% endfor %}
+
+        </div>
+    </div>
+</div>
+<div id="modal-action" uk-modal>
+    <div class="uk-modal-dialog">
+        <button class="uk-modal-close-default" type="button" uk-close></button>
+        <div class="uk-modal-header">
+            <h2 class="uk-modal-title">記録入力</h2>
+        </div>
+
+        <ul class="uk-subnav uk-subnav-pill" uk-switcher>
+            <li><a href="#">🌱 植付</a></li>
+            <li><a href="#">📝 お世話</a></li>
+        </ul>
+
+        <div class="uk-switcher uk-margin">
+            <div>
+                <form method="post" action="{% url 'plant_crop' %}">
+                    {% csrf_token %}
+                    <div class="uk-margin">
+                        <label class="uk-form-label">作物名</label>
+                        <select class="uk-select">
+                            {% for v in v_type_list %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <button class="uk-button uk-button-primary uk-width-1-1">植付完了</button>
+                </form>
+            </div>
+
+            <div>
+                <form method="post" action="{% url 'add_log' %}">
+                    {% csrf_token %}
+                    <div class="uk-margin">
+                        <label class="uk-form-label">内容</label>
+                        <div class="uk-grid-small uk-child-width-1-2" uk-grid>
+                            <label><input class="uk-checkbox" type="checkbox"> 水やり</label>
+                            <label><input class="uk-checkbox" type="checkbox"> 追肥</label>
+                            <label><input class="uk-checkbox" type="checkbox"> 除草</label>
+                            <label><input class="uk-checkbox" type="checkbox"> 収穫</label>
+                        </div>
+                    </div>
+                    <textarea class="uk-textarea" rows="3" placeholder="メモ"></textarea>
+                    <button class="uk-button uk-button-secondary uk-width-1-1">記録保存</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
