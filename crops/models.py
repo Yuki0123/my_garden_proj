@@ -116,15 +116,23 @@ class VegetableType(models.Model):
 
     icon = models.FileField(
         "アイコン画像",
-        upload_to="アイコン(SVG推奨)",
-        blank=True,
         null=True,
+        blank=True,
+        upload_to="アイコン(SVG推奨)",
         help_text="SVG形式だと拡大しても綺麗に表示されます",
     )
 
     # 栽培間隔（センチメートル単位で管理し、グリッド計算に利用）
     spacing_cm = models.PositiveIntegerField(
         "栽培間隔(cm)", default=50, help_text="株間の目安（例：トマトなら50cm）"
+    )
+
+    PLANTING_METHOD_CHOICES = [
+        ("individual", "個体植え"),  # トマト、ナス（1マスに1つ）
+        ("dense", "密集・筋蒔き"),  # ニンジン、小松菜（1マスに複数）
+    ]
+    planting_method = models.CharField(
+        "栽培方法", max_length=20, choices=PLANTING_METHOD_CHOICES, default="individual"
     )
 
     def __str__(self):

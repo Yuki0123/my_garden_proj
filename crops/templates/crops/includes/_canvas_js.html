@@ -20,6 +20,7 @@
 
         // --- 2. データの読み込み ---
         const dataElement = document.getElementById('plot-data-json');
+        console.log("データ要素:", dataElement);
         if (!dataElement) return;
 
         let plotData = {};
@@ -31,6 +32,7 @@
             return;
         }
 
+        
         // --- 3. タップ（クリック）イベント ---
         canvas.addEventListener('click', (event) => {
             const rect = canvas.getBoundingClientRect();

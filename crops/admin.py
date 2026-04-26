@@ -568,11 +568,18 @@ class VegetableFamilyAdmin(admin.ModelAdmin):
 @admin.register(VegetableType)
 class VegetableTypeAdmin(admin.ModelAdmin):
     change_list_template = "admin/crops/vegetabletype_changelist.html"
-    list_display = ("id", "name", "family", "spacing_cm", "icon_preview")
+    list_display = (
+        "id",
+        "name",
+        "family",
+        "spacing_cm",
+        "icon_preview",
+        "planting_method",
+    )
     list_filter = ("family",)
     search_fields = ("name",)
     readonly_fields = ("icon_preview",)
-    fields = ("name", "family", "icon", "icon_preview", "spacing_cm")
+    fields = ("name", "family", "icon", "icon_preview", "spacing_cm", "planting_method")
 
     def get_urls(self):
         urls = super().get_urls()

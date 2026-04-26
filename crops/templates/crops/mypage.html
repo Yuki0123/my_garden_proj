@@ -1,6 +1,32 @@
 {% extends "base.html" %}
 {% load static %}
+{% block extrahead %}
+    <style>
+        #canvas-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            line-height: 0; /* 画像の下の余白を消す */
+        }
 
+        #garden-canvas {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+    <script src="{% static 'js/garden_editor.js' %}" defer></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof GardenEditor !== 'undefined') {
+                GardenEditor.init('garden-canvas', 'plot-data-json');
+            } else {
+                console.error("GardenEditorがまだ読み込まれていません");
+            }
+        });
+    </script>
+
+{% endblock %}
 {% block content %}
 <div class="uk-section uk-section-xsmall">
     <div class="uk-container">
@@ -41,12 +67,7 @@
                     style="width: 100%; overflow-x: auto; background-color: #f8f8f8; border: 1px solid #ddd; line-height: 0;">
                     <canvas id="garden-canvas" style="display: block; margin: 0 auto;"></canvas>
                 </div>
-
-                <script id="plot-data-json" type="application/json">
-                    {{ plot_json|safe }}
-                </script>
                 
-                {% include 'crops/includes/_canvas_js.html' %}
             </div>
         </div>
         {% else %}
@@ -56,9 +77,6 @@
         {% endif %}
     </div>
 </div>
-<script>
-    // ここに追加のJavaScriptコードを記述できます
-        // canvasに対してクリックイベントを設定
-
-</script>
+{{ plot_json|json_script:"plot-data-json" }}
+{% include 'crops/includes/_canvas_js.html' %}
 {% endblock %}

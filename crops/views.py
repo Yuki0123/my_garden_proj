@@ -65,7 +65,7 @@ def garden_mypage(request):
     context = {
         "garden": my_garden,
         # views.py
-        "plot_json": json.dumps(plot_dict),  # JSで読み込む用
+        "plot_json": plot_dict,  # JSで読み込む用
     }
 
     # views.py
