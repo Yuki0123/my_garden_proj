@@ -730,10 +730,10 @@ class CropAdmin(admin.ModelAdmin):
         "get_vegetable_name",
         "family_display",
         "planted_at",
-        "main_plot",
+        "plots_display",
     )
     list_filter = ("vegetable_type__family", "planted_at")
-    raw_id_fields = ("main_plot",)
+    raw_id_fields = ("plots",)
 
     def get_vegetable_name(self, obj):
         return obj.vegetable_type.name if obj.vegetable_type else "-"
@@ -744,6 +744,24 @@ class CropAdmin(admin.ModelAdmin):
         return obj.vegetable_type.family.name if obj.vegetable_type else "-"
 
     family_display.short_description = "科"
+
+    def plots_display(self, obj):
+        # count() はデータベース側で計算するので爆速です
+        count = obj.plots.count()
+        if count == 0:
+            return "-"
+
+        # 最初の3つだけ取得して表示し、あとは「...」にする
+        plots = obj.plots.all().order_by("row_index", "col_index")[:3]
+        plot_list = [f"[{p.row_index}-{p.col_index}]" for p in plots]
+
+        display_text = ", ".join(plot_list)
+        if count > 3:
+            display_text += f" (+他{count - 3}マス)"
+
+        return display_text
+
+    plots_display.short_description = "配置エリア"
 
 
 @admin.register(MaintenanceLog)

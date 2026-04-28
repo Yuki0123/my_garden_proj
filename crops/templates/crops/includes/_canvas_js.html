@@ -20,7 +20,6 @@
 
         // --- 2. データの読み込み ---
         const dataElement = document.getElementById('plot-data-json');
-        console.log("データ要素:", dataElement);
         if (!dataElement) return;
 
         let plotData = {};
@@ -90,7 +89,16 @@
                     }
                 }
             }
-            console.log("描画完了: 180行 x 70列");
         }
     });
+    document.addEventListener('DOMContentLoaded', () => {
+            console.log("Initializing GardenEditor...");
+            if (typeof GardenEditor !== 'undefined') {
+                console.log("GardenEditor is available, initializing...");
+                GardenEditor.init('garden-canvas', 'plot_data', 'v_types_data');
+            } else {
+                console.error("GardenEditorがまだ読み込まれていません");
+            }
+        });
+
 </script>

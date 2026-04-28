@@ -149,4 +149,4 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # ログイン・ログアウト後のリダイレクト先
 LOGIN_REDIRECT_URL = "/"  # 後で作るトップページへ
-LOGOUT_REDIRECT_URL = "/accounts/login/"  # ログアウトしたらログイン画面へ
+LOGOUT_REDIRECT_URL = "login"  # ログアウトしたらログイン画面へ

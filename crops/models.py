@@ -161,6 +161,10 @@ class Crop(models.Model):
         Plot, on_delete=models.SET_NULL, null=True, blank=True, related_name="crop_here"
     )
 
+    plots = models.ManyToManyField(
+        Plot, related_name="crops", blank=True
+    )  # どのマスに植わっているか（複数マスにまたがる場合もあるためManyToMany）
+
     # 日付管理
     planted_at = models.DateField("植え付け日")
     expected_harvest_date = models.DateField("収穫予定日", null=True, blank=True)

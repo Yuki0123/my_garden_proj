@@ -22,13 +22,14 @@ from django.urls import include, path
 from django.views.generic import RedirectView
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
     path("accounts/", include("django.contrib.auth.urls")),
+    path("admin/", admin.site.urls),
     path("garden/", include("crops.urls")),
     path(
         "", RedirectView.as_view(url="/garden/mypage/"), name="root"
     ),  # トップページも crops アプリの URL を使う]
 ]
+
 
 # 開発環境のみ、メディアファイル（写真）へのアクセスを許可
 if settings.DEBUG:

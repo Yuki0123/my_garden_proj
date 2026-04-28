@@ -17,13 +17,7 @@
     </style>
     <script src="{% static 'js/garden_editor.js' %}" defer></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof GardenEditor !== 'undefined') {
-                GardenEditor.init('garden-canvas', 'plot-data-json');
-            } else {
-                console.error("GardenEditorがまだ読み込まれていません");
-            }
-        });
+
     </script>
 
 {% endblock %}
@@ -65,9 +59,14 @@
 
                 <div id="canvas-wrapper"
                     style="width: 100%; overflow-x: auto; background-color: #f8f8f8; border: 1px solid #ddd; line-height: 0;">
+                    <button type="button" class="uk-button uk-button-primary uk-button-small"
+                        style="position: absolute; top: 10px; right: 10px; z-index: 10; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
+                        uk-toggle="target: #crop-modal">
+                        <span uk-icon="plus"></span> 新しく植え付ける
+                    </button>
+
                     <canvas id="garden-canvas" style="display: block; margin: 0 auto;"></canvas>
                 </div>
-                
             </div>
         </div>
         {% else %}
@@ -77,6 +76,14 @@
         {% endif %}
     </div>
 </div>
-{{ plot_json|json_script:"plot-data-json" }}
+{% include 'crops/includes/vegetable_modal.html' %}
+{% include 'crops/includes/editor_panels.html' %}
+
+{{ v_types_data|json_script:"v_types_data" }}
+{{ plot_data|json_script:"plot_data" }}
+<pre style="background: #eee; padding: 10px; border: 1px solid #ccc;">
+    {{ plot_data }}
+</pre>
 {% include 'crops/includes/_canvas_js.html' %}
+
 {% endblock %}
