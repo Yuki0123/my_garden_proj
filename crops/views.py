@@ -166,3 +166,18 @@ def get_crops(request):
         )
 
     return JsonResponse({"crops": data})
+
+
+@require_POST
+def harvest_crop(request, crop_id):
+    try:
+        data = json.loads(request.body)
+        harvest_date_str = data.get("harvested_at")  # フロントからの日付を取得
+
+        crop = Crop.objects.get(id=crop_id)
+        crop.harvested_at = harvest_date_str
+        crop.save()
+
+        return JsonResponse({"status": "success", "harvested_at": harvest_date_str})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=400)

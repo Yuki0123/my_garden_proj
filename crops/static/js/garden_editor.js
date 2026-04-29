@@ -23,7 +23,13 @@ const GardenEditor = {
         offset: { r: 0, c: 0 }
     
     },
-    
+    findCropAt(pos) {
+        // 逆順で探すことで、重なっている場合に上のものを優先する
+        return [...this.crops].reverse().find(crop =>
+            pos.r >= crop.row && pos.r < crop.row + crop.height &&
+            pos.c >= crop.col && pos.c < crop.col + crop.width
+        );
+    },
     // --- 3. 初期化 ---
     init(canvasId, dataId, vTypesId) {
         console.log("dataId", dataId, "vTypesId", vTypesId);
@@ -49,7 +55,27 @@ const GardenEditor = {
             this.vTypes = JSON.parse(vTypesElement.textContent);
             this.renderVegetablePicker();
         }
+        // garden_editor.js の init または constructor 内
+        this.isHarvestMode = false; // 初期状態はOFF
 
+        const harvestBtn = document.getElementById('harvest-mode-btn');
+        if (harvestBtn) {
+            harvestBtn.addEventListener('click', () => {
+                this.isHarvestMode = !this.isHarvestMode; // モードを反転
+
+                // UIの見た目を変える
+                if (this.isHarvestMode) {
+                    harvestBtn.textContent = '🌾 収穫・撤去モード: ON';
+                    harvestBtn.classList.replace('uk-button-default', 'uk-button-danger');
+                    this.canvas.style.cursor = 'crosshair'; // カーソルを十字に変える
+                    this.cancelEditing(); // もし植え付け中ならキャンセルさせる
+                } else {
+                    harvestBtn.textContent = '🌾 収穫・撤去モード: OFF';
+                    harvestBtn.classList.replace('uk-button-danger', 'uk-button-default');
+                    this.canvas.style.cursor = 'default';
+                }
+            });
+        }
         this.updateSize();
         this.bindEvents();
         this.loadSavedCrops();
@@ -128,9 +154,18 @@ const GardenEditor = {
     },
 
     handleMouseDown(e) {
-        if (!this.editor.active) return;
         const pos = this.getMousePos(e);
-
+        console.log(this.isHarvestMode ? "Harvest mode active" : "Edit mode active", "Clicked position:", pos);
+        // --- 収穫モードの場合 ---
+        if (this.isHarvestMode) {
+            const targetCrop = this.findCropAt(pos);
+            console.log("Harvest mode: clicked position", pos, "found crop:", targetCrop);
+            if (targetCrop) {
+                this.harvestCrop(targetCrop.id);
+            }
+            return; // 収穫モードの時は移動処理をさせない
+        }
+        if (!this.editor.active) return;
         // ハンドル（右下隅）を掴んだか判定
         if (pos.c === this.editor.c + this.editor.w - 1 &&
             pos.r === this.editor.r + this.editor.h - 1) {
@@ -448,6 +483,41 @@ const GardenEditor = {
 
         console.log("編集をキャンセルしました");
     },
+    
+    // garden_editor.js 内の harvestCrop を修正
+    async harvestCrop(cropId) {
+        // this.selectedDate が undefined の場合を考慮し、
+        // 直接 HTML 要素から最新の日付文字列を取得する
+        const dateInput = document.getElementById('current-date');
+        const harvestDate = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
+
+        if (!confirm(`${harvestDate} にこの作物を収穫（撤去）しますか？`)) return;
+
+        try {
+            const response = await fetch(`/garden/api/harvest_crop/${cropId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken(),
+                },
+                body: JSON.stringify({ harvested_at: harvestDate })
+            });
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                // ローカルデータの更新
+                const crop = this.crops.find(c => c.id === cropId);
+                if (crop) {
+                    crop.harvested_at = harvestDate;
+                }
+
+                this.draw(); // 再描画して、判定ロジックにより画面から消す
+                alert('収穫を記録しました！');
+            }
+        } catch (e) {
+            console.error("収穫処理に失敗:", e);
+        }
+    }
 
 };
 // garden_editor.js または mypage.html の script 内

@@ -52,7 +52,10 @@
                 </div>
             </div>
         </div>
-        {% include 'crops/includes/calender.html' %}
+
+        <div class="uk-margin-large-top">
+        {% include 'crops/includes/dateselector.html' %}
+        </div>
 
         <div class="uk-margin-large-top">
             <div class="uk-card uk-card-default uk-card-body uk-width-1-1">
@@ -65,7 +68,12 @@
                         uk-toggle="target: #crop-modal">
                         <span uk-icon="plus"></span> 新しく植え付ける
                     </button>
-
+                    <!-- mypage.html のボタンエリア -->
+                    <div class="editor-controls">
+                        <button id="harvest-mode-btn" class="uk-button uk-button-default">
+                            🌾 収穫・撤去モード: OFF
+                        </button>
+                    </div>
                     <canvas id="garden-canvas" style="display: block; margin: 0 auto;"></canvas>
                 </div>
             </div>
