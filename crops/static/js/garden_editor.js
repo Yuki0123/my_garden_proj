@@ -1,3 +1,5 @@
+
+
 const GardenEditor = {
 
     // --- 1. 基本設定 ---
@@ -29,6 +31,12 @@ const GardenEditor = {
         if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
 
+        // constructorの中でイベントリスナーを設定
+        this.currentDate = document.getElementById('current-date');
+
+        // selectedDate はカレンダーで選んだ日 (Dateオブジェクト)
+
+
         // Djangoのjson_scriptからデータを取得
         const dataElement = document.getElementById(dataId);
         if (dataElement) {
@@ -39,7 +47,6 @@ const GardenEditor = {
         const vTypesElement = document.getElementById(vTypesId);
         if (vTypesElement) {
             this.vTypes = JSON.parse(vTypesElement.textContent);
-            console.log("Vegetable types loaded:", this.vTypes);
             this.renderVegetablePicker();
         }
 
@@ -60,11 +67,9 @@ const GardenEditor = {
         try {
             const response = await fetch('/garden/api/get_crops/');
             const data = await response.json();
-
             // サーバーから届いたデータを this.crops にセット
             this.crops = data.crops;
 
-            console.log("Crops loaded:", this.crops);
             this.draw(); // データが届いたら再描画
         } catch (e) {
             console.error("作物の読み込みに失敗:", e);
@@ -83,6 +88,10 @@ const GardenEditor = {
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         this.canvas.addEventListener('mouseup', () => this.handleMouseUp());
+        this.currentDate.addEventListener('change', () => {
+            console.log("Selected date changed:", this.currentDate.value);
+            this.draw(); // 日付が変わったら表示を更新
+        });
     },
 
     // garden_editor.js
@@ -93,7 +102,6 @@ const GardenEditor = {
 
         // --- ここを修正： this.vTypes ではなく GardenEditor.vTypes を使う ---
         const types = this.vTypes;
-        console.log(this.vTypes)
         if (!types || !Array.isArray(types)) {
             console.error("renderVegetablePicker: 野菜データが不正です", types);
             return;
@@ -157,12 +165,31 @@ const GardenEditor = {
         this.editor.isResizing = false;
     },
 
+    
     // --- 5. 描画ロジック ---
     draw() {
+        // 1. まずカレンダーから「今選ばれている日」を取得する
+        const selectedDate = new Date(this.currentDate.value);
+        console.log("Drawing garden for date:", selectedDate);
+        // 2. Canvasを一旦真っ白に消す（これ重要！）
+        
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // 畑と既存の作物の描画（ここに以前のループ処理を書く）
+        
+        // 3. 背景やグリッドを描画（もしあれば）
         this.drawGrid();
+
+        // 4. 野菜（crops）のループの中に「if文」を入れる！
+        this.crops.forEach(crop => {
+            // 文字列で届いている日付を比較可能なDateオブジェクトに変換
+            const pAt = new Date(crop.planted_at);
+            const hAt = crop.harvested_at ? new Date(crop.harvested_at) : null;
+
+            // --- ここが「魔法」の条件分岐 ---
+            // 「植え付け日が今日以前」かつ「（収穫されていない、または収穫日が今日より先）」
+            if (pAt <= selectedDate && (!hAt || selectedDate < hAt)) {
+                this.drawCrop(crop); // 条件に合う時だけ描画を実行
+            }
+        });
 
         // 編集中のプレビューを表示
         if (this.editor.active) {
@@ -187,16 +214,13 @@ const GardenEditor = {
                     c >= crop.col && c < crop.col + crop.width
                 );
 
-                if (cropInPlot) {
-                    fillColor = '#8b45136e'; // ひとまず緑色にする（cropInPlot.color があればそれを使う）
-                }
+
                 this.ctx.fillStyle = fillColor;
                 this.ctx.fillRect(x, y, this.cellSize - 1, this.cellSize - 1);
 
                 // 作物(SVG)の描画ロジックもここに入る
             }
         }
-        this.drawCrops(); // 追加：作物の描画関数を呼び出す
     },
     // drawGrid() 内、または独立した描画関数として実装
     drawCrops() {
@@ -257,6 +281,66 @@ const GardenEditor = {
                 }
             };
         });
+    },
+    drawCrop(crop) {
+        console.log("Drawing crop:", crop);
+        if (!crop.icon_url) return;
+
+        const img = new Image();
+        img.src = crop.icon_url;
+
+        // 画像の読み込みが完了してから描画
+        img.onload = () => {
+            const iw = img.width;
+            const ih = img.height;
+            const aspect = iw / ih;
+
+            // 1マス 10cm の設定（既存ロジックを継承）
+            const cmPerPlot = 10;
+            const spacingPx = (crop.spacing_cm / cmPerPlot) * this.cellSize;
+
+            const areaX = crop.col * this.cellSize;
+            const areaY = crop.row * this.cellSize;
+            const areaW = crop.width * this.cellSize;
+            const areaH = crop.height * this.cellSize;
+            
+            this.ctx.strokeStyle = 'red';
+            this.ctx.strokeRect(areaX, areaY, areaW, areaH);
+            // アイコンの基本サイズ（1マスより少し大きくして見栄えを良くする）
+            const iconH = this.cellSize * 1.8;
+            const iconW = iconH * aspect;
+
+            if (crop.planting_method === 'dense') {
+                // --- 【筋蒔き/密植】間隔に合わせて並べて描画 ---
+                for (let y = spacingPx / 2; y < areaH; y += spacingPx) {
+                    for (let x = spacingPx / 2; x < areaW; x += spacingPx) {
+                        const targetX = areaX + x - (iconW / 2);
+                        const targetY = areaY + y - (iconH / 2);
+                        
+                        // エリアからはみ出さないかチェック
+                        if (x + iconW / 2 <= areaW && y + iconH / 2 <= areaH) {
+                            this.ctx.drawImage(img, targetX, targetY, iconW, iconH);
+                            
+                        }
+                    }
+                }
+
+            } else {
+                // --- 【個体植え】エリアの中央に大きく1つ描画 ---
+                let drawW, drawH;
+                if (areaW / areaH > aspect) {
+                    drawH = areaH * 0.9;
+                    drawW = drawH * aspect;
+                } else {
+                    drawW = areaW * 0.9;
+                    drawH = drawW / aspect;
+                }
+
+                const targetX = areaX + (areaW - drawW) / 2;
+                const targetY = areaY + (areaH - drawH) / 2;
+                this.ctx.drawImage(img, targetX, targetY, drawW, drawH);
+            }
+        };
     },
     drawPreview() {
         const x = this.editor.c * this.cellSize;

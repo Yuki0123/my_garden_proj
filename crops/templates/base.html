@@ -21,15 +21,12 @@
                 <li><a href="/">ホーム</a></li>
                 <li><a href="{% url 'admin:index' %}">管理画面</a></li>
                 <li>
-                    <form action="{% url 'logout' %}" method="post" style="display: inline;">
+                    <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: none;">
                         {% csrf_token %}
-                        <button type="submit" style="background: none; border: none; cursor: pointer; 
-                                padding: 0 15px; color: #666; font: inherit; 
-                                line-height: 80px; /* ナビゲーションバーの高さに合わせる */
-                                text-transform: none;">
-                            ログアウト
-                        </button>
                     </form>
+                    <a href="javascript:void(0)" onclick="document.getElementById('logout-form').submit();">
+                        ログアウト
+                    </a>
                 </li>
             </ul>
             <a class="uk-navbar-toggle uk-hidden@m" uk-navbar-toggle-icon uk-toggle="target: #offcanvas-menu"></a>
@@ -49,14 +46,9 @@
                 <li><a href="{% url 'admin:index' %}">管理画面</a></li>
                 <li class="uk-nav-divider"></li>
                 <li>
-                    <form action="{% url 'logout' %}" method="post" style="padding: 5px 20px;">
-                        {% csrf_token %}
-                        <button type="submit" style="background: none; border: none; cursor: pointer; 
-                                color: #999; font: inherit; padding: 0;
-                                text-transform: none;">
-                            ログアウト
-                        </button>
-                    </form>
+                    <a href="javascript:void(0)" onclick="document.getElementById('logout-form').submit();">
+                        ログアウト
+                    </a>
                 </li>
             </ul>
         </div>

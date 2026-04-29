@@ -158,7 +158,11 @@ class Crop(models.Model):
 
     # 畝の中のメインとなるマス
     main_plot = models.OneToOneField(
-        Plot, on_delete=models.SET_NULL, null=True, blank=True, related_name="crop_here"
+        Plot,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="crop_here",
     )
 
     plots = models.ManyToManyField(

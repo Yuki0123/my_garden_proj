@@ -36,8 +36,11 @@ def garden_mypage(request):
 
     # 2. データベースにある「実在するマス（Plot）」を取得
     # prefetch_related で 紐付く 畝(beds) と 作物(crop_here) を一気に引く
-    plots_in_db = Plot.objects.filter(area=my_garden).prefetch_related(
-        "beds", "crop_here__vegetable_type"
+    plots_in_db = Plot.objects.filter(
+        area=my_garden
+    ).prefetch_related(
+        "beds",
+        "crop_here__vegetable_type",  # Cropを連れてくるついでに、アイコン(Type)も持ってくるだけ
     )
 
     for p in plots_in_db:
@@ -49,10 +52,17 @@ def garden_mypage(request):
 
             # 作物があれば情報を入れる
             if hasattr(p, "crop_here") and p.crop_here:
+                crop = p.crop_here
                 plot_dict[key]["crop"] = {
-                    "name": p.crop_here.vegetable_type.name,
-                    "icon": p.crop_here.vegetable_type.icon.url
-                    if p.crop_here.vegetable_type.icon
+                    "id": crop.id,
+                    "v_type_id": crop.vegetable_type.id,
+                    "name": crop.vegetable_type.name,
+                    "icon": crop.vegetable_type.icon.url
+                    if crop.vegetable_type.icon
+                    else None,
+                    "planted_at": crop.planted_at.isoformat(),  # 文字列にしてJSで扱えるようにする
+                    "harvested_at": crop.harvested_at.isoformat()
+                    if crop.harvested_at
                     else None,
                 }
 
@@ -69,7 +79,6 @@ def garden_mypage(request):
     context = {
         "garden": my_garden,
         "v_types_data": v_types_data,
-        # views.py
         "plot_data": plot_dict,  # JSで読み込む用
     }
 
@@ -139,6 +148,10 @@ def get_crops(request):
             {
                 "id": crop.id,
                 "veg_name": crop.vegetable_type.name if crop.vegetable_type else "不明",
+                "planted_at": crop.planted_at.isoformat(),  # ここ！
+                "harvested_at": crop.harvested_at.isoformat()
+                if crop.harvested_at
+                else None,  # ここ！
                 "row": min(rows),
                 "col": min(cols),
                 "width": max(cols) - min(cols) + 1,
