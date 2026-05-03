@@ -767,7 +767,15 @@ class CropAdmin(admin.ModelAdmin):
 @admin.register(MaintenanceLog)
 class MaintenanceLogAdmin(admin.ModelAdmin):
     # list_display の修正
-    list_display = ["worked_at", "user", "display_plots_count", "task_type", "note"]
+    list_display = [
+        "worked_at",
+        "user",
+        "bed",
+        "crop",
+        "display_plots_count",
+        "task_type",
+        "note",
+    ]
 
     # list_filter の修正 (action_type を task_type へ)
     list_filter = ["task_type", "user", "worked_at"]

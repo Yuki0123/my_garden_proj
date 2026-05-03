@@ -94,11 +94,10 @@
     document.addEventListener('DOMContentLoaded', () => {
             console.log("Initializing GardenEditor...");
             if (typeof GardenEditor !== 'undefined') {
-                console.log("GardenEditor is available, initializing...");
-                GardenEditor.init('garden-canvas', 'plot_data', 'v_types_data');
-            } else {
+                GardenEditor.init('{{ garden.id }}','garden-canvas', 'plot_data', 'v_types_data', 'bed_data');
+            } else 
                 console.error("GardenEditorがまだ読み込まれていません");
             }
-        });
+        );
 
 </script>

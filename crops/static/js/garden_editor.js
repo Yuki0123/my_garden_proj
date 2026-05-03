@@ -10,6 +10,8 @@ const GardenEditor = {
     cols: 70,
     plotData: {},
     crops: [],
+    selectedDate: null, // カレンダーで選んだ日を保持する変数
+    areaId: null,
 
     // --- 2. 編集ステート（ここが心臓部） ---
     editor: {
@@ -31,18 +33,31 @@ const GardenEditor = {
         );
     },
     // --- 3. 初期化 ---
-    init(canvasId, dataId, vTypesId) {
+    init(areaId, canvasId, dataId, vTypesId, bedDataId) {
         console.log("dataId", dataId, "vTypesId", vTypesId);
+        this.areaId = areaId;
         this.canvas = document.getElementById(canvasId);
         if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
 
         // constructorの中でイベントリスナーを設定
         this.currentDate = document.getElementById('current-date');
+        // --- ここから初期値セット ---
+        if (this.currentDate && !this.currentDate.value) {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+
+            // inputに "2026-05-01" のような形式で入れる
+            this.currentDate.value = `${y}-${m}-${d}`;
+            this.loadMaintenanceLogs(); // 初期値をセットした後にログを読み込む
+        }
 
         // selectedDate はカレンダーで選んだ日 (Dateオブジェクト)
+        this.selectedDate = new Date(this.currentDate.value.replace(/-/g, '/'));
 
-
+        // これでズレが解消されるはずです！
         // Djangoのjson_scriptからデータを取得
         const dataElement = document.getElementById(dataId);
         if (dataElement) {
@@ -54,6 +69,10 @@ const GardenEditor = {
         if (vTypesElement) {
             this.vTypes = JSON.parse(vTypesElement.textContent);
             this.renderVegetablePicker();
+        }
+        const bedDataElement = document.getElementById(bedDataId);
+        if (bedDataElement) {
+            this.beds = JSON.parse(bedDataElement.textContent);
         }
         // garden_editor.js の init または constructor 内
         this.isHarvestMode = false; // 初期状態はOFF
@@ -76,6 +95,45 @@ const GardenEditor = {
                 }
             });
         }
+
+        // init() メソッドの中などでイベント設定
+        document.getElementById('maintenance-form').onsubmit = async (e) => {
+            e.preventDefault();
+            console.log("Selected date:", this.selectedDate, "Current log target:", this.currentLogTarget);
+            
+            const payload = {
+                area_id: this.areaId,
+                task_type: document.getElementById('log-task-type').value,
+                note: document.getElementById('log-note').value,
+                row: this.currentLogTarget.r,
+                col: this.currentLogTarget.c,
+                crop_id: this.currentLogTarget.cropId, // 野菜がいればIDを送る
+                bed_id: this.currentLogTarget.bedId, // 畝がいればIDを送る
+                date: document.getElementById('current-date').value // 画面上の日付を送る
+            };
+            console.log(payload)
+            
+            try {
+                const response = await fetch('/garden/api/save_maintenance_log/', {
+                    
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCsrfToken()
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    UIkit.modal('#maintenance-modal').hide();
+                    alert('お世話を記録しました！');
+                    // お世話アイコンを表示するために再描画
+                    this.loadMaintenanceLogs();
+                }
+            } catch (error) {
+                console.error("保存失敗:", error);
+            }
+        };
         this.updateSize();
         this.bindEvents();
         this.loadSavedCrops();
@@ -87,7 +145,54 @@ const GardenEditor = {
             this.draw();
         });
     },
+    // garden_editor.js
 
+    // 保存されているログを保持する変数（initのあたりで定義しておくと吉）
+    maintenanceLogs: [],
+
+    async loadMaintenanceLogs() {
+        const areaId = this.areaId;
+        // input[type="date"] から直接文字列を取得（時差ズレ防止）
+        const dateStr = document.getElementById('current-date').value;
+
+        console.log(`[Log] Loading logs for Area:${areaId}, Date:${dateStr}`);
+
+        try {
+            const response = await fetch(`/garden/api/get_maintenance_logs/?area_id=${areaId}&date=${dateStr}`);
+
+            if (response.ok) {
+                const data = await response.json();
+
+                // views.py から届いた row, col 入りのリストを保存
+                this.maintenanceLogs = Array.isArray(data) ? data : [];
+
+                const summaryArea = document.getElementById('log-summary');
+                if (summaryArea) {
+                    if (data.length === 0) {
+                        summaryArea.innerHTML = '<span class="uk-text-muted uk-text-small">本日の記録はありません</span>';
+                    } else {
+                        // task_type ごとに件数を集計
+                        const summary = data.reduce((acc, log) => {
+                            acc[log.task_display] = (acc[log.task_display] || 0) + 1;
+                            return acc;
+                        }, {});
+
+                        summaryArea.innerHTML = Object.entries(summary)
+                            .map(([name, count]) => `<span class="uk-badge uk-margin-small-right" style="background: #1e87f0;">${name} ${count}</span>`)
+                            .join('');
+                    }
+                }
+                // 再読み込みが終わったら、最新の maintenanceLogs を使って Canvas を描画
+                this.draw();
+            } else {
+                console.error("Server returned an error:", response.status);
+            }
+        } catch (error) {
+            console.error("ログの読み込み失敗:", error);
+            this.maintenanceLogs = []; // エラー時は空にして描画の破綻を防ぐ
+            this.draw(); // 空の状態で再描画
+        }
+    },
     // 適当な場所（initの下など）に追加
     async loadSavedCrops() {
         try {
@@ -116,7 +221,11 @@ const GardenEditor = {
         this.canvas.addEventListener('mouseup', () => this.handleMouseUp());
         this.currentDate.addEventListener('change', () => {
             console.log("Selected date changed:", this.currentDate.value);
-            this.draw(); // 日付が変わったら表示を更新
+            this.selectedDate = new Date(this.currentDate.value.replace(/-/g, '/')); // ここでもズレを防ぐ工夫
+            if (typeof this.loadMaintenanceLogs === 'function') {
+                this.loadMaintenanceLogs();
+            }
+
         });
     },
 
@@ -155,7 +264,7 @@ const GardenEditor = {
 
     handleMouseDown(e) {
         const pos = this.getMousePos(e);
-        console.log(this.isHarvestMode ? "Harvest mode active" : "Edit mode active", "Clicked position:", pos);
+
         // --- 収穫モードの場合 ---
         if (this.isHarvestMode) {
             const targetCrop = this.findCropAt(pos);
@@ -165,7 +274,40 @@ const GardenEditor = {
             }
             return; // 収穫モードの時は移動処理をさせない
         }
+
+        // その座標に作物がいるか探す
+        const crop = this.crops.find(c =>
+            pos.r >= c.row && pos.r < c.row + c.height &&
+            pos.c >= c.col && pos.c < c.col + c.width
+        );
+
+        // --- 修正箇所：定義済みの pos.r, pos.c を使う ---
+        const row = pos.r;
+        const col = pos.c;
+
+        // 1. キーを作成 (例: "3-3")
+        const bedKey = `${row}-${col}`;
+
+        // 2. 直接オブジェクトから取得
+        const bedData = this.beds ? this.beds[bedKey] : null;
+
+        // モーダル表示モード判定
+        if (!this.isHarvestMode && !this.isEditMode) {
+            const targetData = {
+                r: row,
+                c: col,
+                cropId: crop ? crop.id : null,
+                cropName: crop ? crop.veg_name : null,
+                bedId: bedData ? bedData.bed_id : null,
+                bedName: bedData ? bedData.name : null
+            };
+            this.openMaintenanceModal(targetData);
+
+            return;
+        }
+
         if (!this.editor.active) return;
+
         // ハンドル（右下隅）を掴んだか判定
         if (pos.c === this.editor.c + this.editor.w - 1 &&
             pos.r === this.editor.r + this.editor.h - 1) {
@@ -179,7 +321,6 @@ const GardenEditor = {
             this.editor.offset.r = pos.r - this.editor.r;
         }
     },
-
     handleMouseMove(e) {
         if (!this.editor.active) return;
         const pos = this.getMousePos(e);
@@ -205,14 +346,32 @@ const GardenEditor = {
     draw() {
         // 1. まずカレンダーから「今選ばれている日」を取得する
         const selectedDate = new Date(this.currentDate.value);
-        console.log("Drawing garden for date:", selectedDate);
-        // 2. Canvasを一旦真っ白に消す（これ重要！）
         
+        // 2. Canvasを一旦真っ白に消す（これ重要！）
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         // 3. 背景やグリッドを描画（もしあれば）
-        this.drawGrid();
+        // draw() メソッド内の一部
+        if (this.maintenanceLogs && Array.isArray(this.maintenanceLogs)) {
+            this.maintenanceLogs.forEach(log => {
+                
+                const x = log.col * this.gridSize;
+                const y = log.row * this.gridSize;
+                console.log("Drawing log at:", log.row, log.col);
+                // 例：右上に小さな水色の丸を出す
+                // タスクごとに色を変える例
+                this.ctx.fillStyle = (log.task_type === 'watering') ? '#00bfff' : '#ffcc00';
 
+                // マスの中央に小さな丸を描画
+                this.ctx.beginPath();
+                this.ctx.arc(
+                    x + this.gridSize / 2,
+                    y + this.gridSize / 2,
+                    4, 0, Math.PI * 2
+                );
+                this.ctx.fill();
+            });
+        }
         // 4. 野菜（crops）のループの中に「if文」を入れる！
         this.crops.forEach(crop => {
             // 文字列で届いている日付を比較可能なDateオブジェクトに変換
@@ -230,6 +389,8 @@ const GardenEditor = {
         if (this.editor.active) {
             this.drawPreview();
         }
+        this.drawGrid();
+
     },
 
     drawGrid() {
@@ -318,7 +479,6 @@ const GardenEditor = {
         });
     },
     drawCrop(crop) {
-        console.log("Drawing crop:", crop);
         if (!crop.icon_url) return;
 
         const img = new Image();
@@ -339,8 +499,10 @@ const GardenEditor = {
             const areaW = crop.width * this.cellSize;
             const areaH = crop.height * this.cellSize;
             
+            // デバッグ用：作物の占有エリアを赤い枠で表示
             this.ctx.strokeStyle = 'red';
             this.ctx.strokeRect(areaX, areaY, areaW, areaH);
+
             // アイコンの基本サイズ（1マスより少し大きくして見栄えを良くする）
             const iconH = this.cellSize * 1.8;
             const iconW = iconH * aspect;
@@ -377,6 +539,61 @@ const GardenEditor = {
             }
         };
     },
+    // マス(r, c)に野菜がいるかチェックし、いればその野菜オブジェクトを返す
+    getCropAt(r, c) {
+        return this.crops.find(crop => {
+            // 現在の日付で表示されている野菜だけを対象にする判定
+            const pAt = new Date(crop.planted_at);
+            const hAt = crop.harvested_at ? new Date(crop.harvested_at) : null;
+            const isVisible = pAt <= this.selectedDate && (!hAt || this.selectedDate < hAt);
+
+            if (!isVisible) return false;
+
+            // 範囲内に入っているか
+            return r >= crop.row && r < crop.row + crop.height &&
+                c >= crop.col && c < crop.col + crop.width;
+        });
+    },
+    // garden_editor.js
+
+    findBedAt(r, c) {
+        // this.selectedDate (Dateオブジェクト) と比較
+        return this.beds.find(bed => {
+            const createdAt = new Date(bed.created_at);
+            const deletedAt = bed.deleted_at ? new Date(bed.deleted_at) : null;
+
+            // 1. 座標が範囲内か
+            const isInside = r >= bed.row && r < bed.row + bed.height &&
+                c >= bed.col && c < bed.col + bed.width;
+
+            // 2. その日付時点で存在しているか
+            // 作成日 <= 選択日 かつ (削除されていない、または 削除日 > 選択日)
+            const isExists = createdAt <= this.selectedDate &&
+                (!deletedAt || deletedAt > this.selectedDate);
+
+            return isInside && isExists;
+        });
+    },
+    // garden_editor.js 451行目付近
+
+    getBedAt(r, c) {
+        const key = `${r}-${c}`;
+
+        // this.beds がオブジェクト { "0-0": {...}, "0-1": {...} } の想定
+        const bedInfo = this.beds[key];
+
+        if (!bedInfo) return null;
+
+        // 日付の論理削除チェック
+        const createdAt = new Date(bedInfo.created_at);
+        const deletedAt = bedInfo.deleted_at ? new Date(bedInfo.deleted_at) : null;
+
+        // 選択された日付時点で存在しているか判定
+        const isExists = createdAt <= this.selectedDate &&
+            (!deletedAt || deletedAt > this.selectedDate);
+
+        return isExists ? { id: bedInfo.bed_id, name: bedInfo.name } : null;
+    },
     drawPreview() {
         const x = this.editor.c * this.cellSize;
         const y = this.editor.r * this.cellSize;
@@ -398,8 +615,63 @@ const GardenEditor = {
         this.ctx.strokeRect(x + w - 10, y + h - 10, 20, 20);
     },
 
+    async openMaintenanceModal(target) {
+        // 1. 引数からすべての情報を一気に取り出す
+        const { r, c, cropId, cropName, bedId, bedName } = target;
+        console.log("Opening modal for:", target);
+        const selectedDate = new Date(this.currentDate.value);
+        // 2. 表示要素の取得
+        const titleEl = document.getElementById('modal-title');
+        const subtitleEl = document.getElementById('modal-subtitle');
+        const historyDiv = document.getElementById('plot-history');
 
-    startEditing(vegId, vegName) {
+        // 3. 表示の切り替え（作物があれば作物優先、なければ畝、それもなければ土）
+        if (cropId) {
+            titleEl.innerHTML = `🌾 ${cropName}`;
+            subtitleEl.innerText = `${r}行 ${c}列 (作物ID: ${cropId})`;
+        } else if (bedId) {
+            titleEl.innerHTML = `📦 ${bedName || '畝'}`;
+            subtitleEl.innerText = `${r}行 ${c}列 (畝ID: ${bedId})`;
+        } else {
+            titleEl.innerHTML = `🟫 土の状態`;
+            subtitleEl.innerText = `${r}行 ${c}列`;
+        }
+
+        // 4. 保存用ターゲットの更新（渡ってきた値をそのまま保持）
+        this.currentLogTarget = { r, c, cropId, bedId };
+
+        // 5. 履歴の取得
+        if (historyDiv) {
+            historyDiv.innerHTML = '<div class="uk-text-center"><span uk-spinner></span> 履歴を読み込み中...</div>';
+        }
+
+        try {
+            // 分割代入で取り出した cropId, bedId をそのまま使う
+            // (null や undefined の場合に備えて || '' をつけておくと安全)
+            const url = `/garden/api/get_plot_history/?area_id=${this.areaId}&row=${r}&col=${c}&crop_id=${cropId || ''}&bed_id=${bedId || ''}`;
+            const res = await fetch(url);
+
+            if (res.ok) {
+                const history = await res.json();
+                console.log("Received history data:", history);
+                if (historyDiv) {
+                    historyDiv.innerHTML = history.map(h => `
+                    <div class="uk-margin-small-bottom uk-border-bottom uk-padding-small">
+                        <span class="uk-label uk-label-success" style="font-size: 10px;">${h.date}</span> 
+                        <span class="uk-text-bold uk-margin-small-left">${h.task}</span>
+                        crop: ${cropName || 'なし'}, bed: ${bedName || 'なし'}
+                        <div class="uk-text-muted uk-text-small">${h.note || ''}</div>
+                    </div>
+                `).join('') || '<div class="uk-text-muted">過去の履歴はありません</div>';
+                }
+            }
+        } catch (error) {
+            console.error("履歴の取得失敗:", error);
+        }
+
+        UIkit.modal('#maintenance-modal').show();
+    },
+        startEditing(vegId, vegName) {
             // 1. UIkitのAPIでモーダルを閉じる
             UIkit.modal('#crop-modal').hide();
 

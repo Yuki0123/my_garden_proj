@@ -1,0 +1,38 @@
+<!-- お世話記録用モーダル -->
+<div id="maintenance-modal" class="uk-flex-top" uk-modal>
+    <div class="uk-modal-dialog uk-modal-body uk-margin-auto-vertical">
+        <button class="uk-modal-close-default" type="button" uk-close></button>
+        
+        <h2 class="uk-modal-title" id="modal-title">マスの情報</h2>
+        <p id="modal-subtitle" class="uk-text-meta"></p>
+
+        <form id="maintenance-form">
+            <div class="uk-margin">
+                <label class="uk-form-label">作業内容</label>
+                <select class="uk-select" id="log-task-type">
+                    <option value="watering">💧 水やり</option>
+                    <option value="fertilizing">🧪 追肥</option>
+                    <option value="weeding">🌱 除草</option>
+                    <option value="pruning">✂️ 芽かき・間引き</option>
+                    <option value="other">📝 その他</option>
+                </select>
+            </div>
+            <div class="uk-margin">
+                <label class="uk-form-label">メモ</label>
+                <textarea class="uk-textarea" id="log-note" rows="3" placeholder="気づいたことをメモ"></textarea>
+            </div>
+            <div class="uk-margin">
+                <label class="uk-form-label uk-text-bold">最近の作業履歴</label>
+                <div id="plot-history" class="uk-panel uk-panel-scrollable"
+                    style="height: 120px; border: 1px solid #eee; padding: 10px;">
+                    <!-- ここに履歴が入る -->
+                </div>
+            </div>
+
+            <p class="uk-text-right">
+                <button class="uk-button uk-button-default uk-modal-close" type="button">キャンセル</button>
+                <button class="uk-button uk-button-primary" type="submit">記録する</button>
+            </p>
+        </form>
+    </div>
+</div>

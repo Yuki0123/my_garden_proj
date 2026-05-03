@@ -1,24 +1,38 @@
 {% extends "base.html" %}
 {% load static %}
 {% block extrahead %}
-    <style>
-        #canvas-wrapper {
-            width: 100%;
-            overflow-x: auto;
-            background-color: #f8f8f8;
-            border: 1px solid #ddd;
-            line-height: 0; /* 画像の下の余白を消す */
-        }
+<style>
+    #canvas-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        background-color: #f8f8f8;
+        border: 1px solid #ddd;
+        line-height: 0; /* 画像の下の余白を消す */
+    }
 
-        #garden-canvas {
-            display: block;
-            margin: 0 auto;
-        }
-    </style>
-    <script src="{% static 'js/garden_editor.js' %}" defer></script>
-    <script>
+    #garden-canvas {
+        display: block;
+        margin: 0 auto;
+    }
+    /* 入力欄全体をクリック可能にする */
+    input[type="date"] {
+        position: relative;
+        cursor: pointer;
+    }
 
-    </script>
+    /* ブラウザ標準のカレンダーアイコンを全体に広げて透明にする魔法 */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+</style>
+<script src="{% static 'js/garden_editor.js' %}" defer></script>
+<script>
+
+</script>
 
 {% endblock %}
 {% block content %}
@@ -49,6 +63,7 @@
                         <li>今日の作業予定: なし</li>
                         <li>最終メンテナンス: 3日前</li>
                     </ul>
+                    
                 </div>
             </div>
         </div>
@@ -58,21 +73,25 @@
         </div>
 
         <div class="uk-margin-large-top">
-            <div class="uk-card uk-card-default uk-card-body uk-width-1-1">
+            <div class="uk-width-1-1">
                 <h4 class="uk-card-title">畑のレイアウト</h4>
 
                 <div id="canvas-wrapper"
                     style="width: 100%; overflow-x: auto; background-color: #f8f8f8; border: 1px solid #ddd; line-height: 0;">
-                    <button type="button" class="uk-button uk-button-primary uk-button-small"
-                        style="position: absolute; top: 10px; right: 10px; z-index: 10; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
-                        uk-toggle="target: #crop-modal">
-                        <span uk-icon="plus"></span> 新しく植え付ける
-                    </button>
+
                     <!-- mypage.html のボタンエリア -->
+                <div type="button" class="uk-button uk-button-primary uk-button-small"
+                    style="position: absolute; top: 65x; right: 60px; z-index: 10; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
+                    uk-toggle="target: #crop-modal">
+                    <span uk-icon="plus"></span> 新しく植え付ける
+                </div>
                     <div class="editor-controls">
                         <button id="harvest-mode-btn" class="uk-button uk-button-default">
                             🌾 収穫・撤去モード: OFF
                         </button>
+                    </div>
+                    <div id="log-summary" class="uk-margin-small-bottom uk-flex uk-flex-middle" style="min-height: 30px;">
+                        <!-- ここに JS が <span class="uk-badge">...</span> を流し込みます -->
                     </div>
                     <canvas id="garden-canvas" style="display: block; margin: 0 auto;"></canvas>
                 </div>
@@ -86,13 +105,12 @@
     </div>
 </div>
 {% include 'crops/includes/vegetable_modal.html' %}
+{% include 'crops/includes/maintenance_modal.html' %}
 {% include 'crops/includes/editor_panels.html' %}
 
 {{ v_types_data|json_script:"v_types_data" }}
 {{ plot_data|json_script:"plot_data" }}
-<pre style="background: #eee; padding: 10px; border: 1px solid #ccc;">
-    {{ plot_data }}
-</pre>
+{{ bed_data|json_script:"bed_data" }}
 {% include 'crops/includes/_canvas_js.html' %}
 
 {% endblock %}

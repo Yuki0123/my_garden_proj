@@ -201,8 +201,22 @@ class MaintenanceLog(models.Model):
     )
     # 何をしたか
     task_type = models.CharField("作業種類", max_length=20, choices=MAINTENANCE_TYPES)
+    crop = models.ForeignKey(
+        "Crop",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="maintenance_logs",
+    )
+    bed = models.ForeignKey(
+        "Bed",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bed_maintenance_logs",
+    )
     # どの区画（マス）に対してのアクションか
-    plots = models.ManyToManyField("Plot", related_name="maintenance_logs")
+    plots = models.ManyToManyField("Plot", related_name="plot_maintenance_logs")
     # 詳細（肥料の名前や、収穫量、気づいたことなど）
     note = models.TextField("メモ", blank=True)
     # いつしたか
