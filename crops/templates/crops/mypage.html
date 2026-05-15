@@ -5,7 +5,7 @@
     #canvas-wrapper {
         width: 100%;
         overflow-x: auto;
-        background-color: #f8f8f8;
+        background-color: #bfc9b1;
         border: 1px solid #ddd;
         line-height: 0; /* 画像の下の余白を消す */
     }
@@ -41,38 +41,37 @@
 
 {% endblock %}
 {% block content %}
+
 <div class="uk-section uk-section-xsmall">
     <div class="uk-container">
-        <p>{{ user.username }}さん</p>        
         {% if garden %}
         <!--<div class="uk-grid-match uk-child-width-1-2@m" uk-grid>
              {% include 'crops/includes/summary.html' %}
             {% include 'crops/includes/maintenance_history.html' %}
         </div>-->
-        <div id="log-summary"></div>
         {% include 'crops/includes/dateselector.html' %}
-
-        <div class="uk-margin-large-top">
-            <div class="uk-width-1-1">
-                <h4 class="uk-card-title">畑のレイアウト</h4>
+        <div id="log-summary" class="uk-margin-small-bottom uk-flex uk-flex-middle">＜span class="uk-badge">...</span>の作業を記録中＞</div>
+        <div type="button" class="uk-button uk-button-primary uk-button-small"
+            style="position: absolute; top: 60px; right: 60px; z-index: 10; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
+            uk-toggle="target: #crop-modal">
+            <span uk-icon="plus"></span> 新しく植え付ける
+        </div>
+        <div>
+            <div class="uk-width-1-1 uk-margin-small">
 
                 <div id="canvas-wrapper"
                     style="width: 100%; overflow-x: auto; background-color: #f8f8f8; border: 1px solid #ddd; line-height: 0;">
 
                     <!-- mypage.html のボタンエリア -->
-                    <div type="button" class="uk-button uk-button-primary uk-button-small"
-                        style="position: absolute; top: 65x; right: 60px; z-index: 10; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
-                        uk-toggle="target: #crop-modal">
-                        <span uk-icon="plus"></span> 新しく植え付ける
-                    </div>
+
                     <div class="editor-controls">
                         <button id="harvest-mode-btn" class="uk-button uk-button-default">
                             🌾 収穫・撤去モード: OFF
                         </button>
                     </div>
-                    <div id="log-summary" class="uk-margin-small-bottom uk-flex uk-flex-middle" style="min-height: 30px;">
+
                     <!-- ここに JS が <span class="uk-badge">...</span> を流し込みます -->
-                    </div>
+                    
                     <canvas id="garden-canvas" style="display: block; margin: 0 auto;"></canvas>
                 </div>
             </div>

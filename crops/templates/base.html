@@ -6,19 +6,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ user.username }}s Garden{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.5/dist/css/uikit.min.css" />
+    <style>
+        body {
+            background-color: #f0f2f0 !important;
+            /* 薄いグレーやベージュ系が畑アプリには合います */
+        }
+    </style>
+    
     {% block extra_css %}{% endblock %}
     {% block extrahead %}{% endblock %}
+
 </head>
 
 <body>
 
-    <nav class="uk-navbar-container" uk-navbar>
-        <div class="uk-navbar-left">
-            <a class="uk-navbar-item uk-logo" href="/">My Garden</a>
-        </div>
-        
-        <div class="uk-navbar-right">
-            <ul class="uk-navbar-nav uk-visible@m">
+    <nav class="uk-navbar-container">
+        <div class="uk-container">
+            <div class="uk-navbar">
+            <div class="uk-navbar-left">
+                <a class="uk-navbar-item uk-logo" href="/">My Garden</a>
+            </div>
+
+            <div class="uk-navbar-right">
+                <ul class="uk-navbar-nav uk-visible@m">
+                <li class="uk-navbar-item">{{ user.username }}</li>
                 <li><a href="/">ホーム</a></li>
                 <li><a href="{% url 'admin:index' %}">管理画面</a></li>
                 <li>
@@ -31,6 +42,8 @@
                 </li>
             </ul>
             <a class="uk-navbar-toggle uk-hidden@m" uk-navbar-toggle-icon uk-toggle="target: #offcanvas-menu"></a>
+            </div>
+            </div>
         </div>
     </nav>
 
