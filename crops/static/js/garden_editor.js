@@ -1,5 +1,3 @@
-
-
 const GardenEditor = {
 
     // --- 1. 基本設定 ---
@@ -439,7 +437,7 @@ const GardenEditor = {
                 const areaW = crop.width * this.cellSize;
                 const areaH = crop.height * this.cellSize;
 
-                const iconH = this.cellSize * 1.8; // セルより少し小さめ
+                const iconH = this.cellSize * 0.8; // セルより少し小さめ
                 const iconW = iconH * aspect;
 
                 if (crop.planting_method === 'dense') {

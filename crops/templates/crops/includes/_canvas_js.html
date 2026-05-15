@@ -1,103 +1,18 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const wrapper = document.getElementById('canvas-wrapper');
-        const canvas = document.getElementById('garden-canvas');
-        if (!wrapper || !canvas) return;
-
-        const ctx = canvas.getContext('2d');
-
-        // --- 1. 基本設定（ご指定の比率に修正） ---
-        const ROWS = 180; // 行（縦に長い）
-        const COLS = 70;  // 列
-
-        // 親要素の幅に合わせて1マスのサイズを計算
-        const wrapperWidth = wrapper.clientWidth;
-        const dynamicCellSize = wrapperWidth / COLS;
-
-        // Canvasのサイズを確定（ROWSが多いため縦に長くなります）
-        canvas.width = wrapperWidth;
-        canvas.height = ROWS * dynamicCellSize;
-
-        // --- 2. データの読み込み ---
-        const dataElement = document.getElementById('plot-data-json');
-        if (!dataElement) return;
-
-        let plotData = {};
-        try {
-            plotData = JSON.parse(dataElement.textContent);
-            drawGarden(canvas, ctx, plotData, dynamicCellSize, ROWS, COLS);
-        } catch (e) {
-            console.error("JSONパースエラー:", e);
-            return;
-        }
-
+        console.log("GardenController: Starting initialization...");
         
-        // --- 3. タップ（クリック）イベント ---
-        canvas.addEventListener('click', (event) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-
-            const c = Math.floor(x / dynamicCellSize);
-            const r = Math.floor(y / dynamicCellSize);
-
-            const key = `${r}-${c}`;
-            const plot = plotData[key];
-
-            if (plot) {
-                let message = `座標: (${r}, ${c})\n`;
-                message += plot.is_bed ? "状態: 畝（うね）\n" : "状態: 通路\n";
-                if (plot.crop) {
-                    const cropName = plot.crop.name || "不明な作物";
-                    message += `作物: ${cropName}`;
-                }
-                alert(message);
-            }
-        });
-
-        // --- 4. 描画関数 ---
-        function drawGarden(canvas, ctx, plotData, cellSize, rows, cols) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            for (let r = 0; r < rows; r++) {
-                // 30行ごとに背景色を交互に変える
-                const isAlternateSection = Math.floor(r / 30) % 2 === 0;
-
-                for (let c = 0; c < cols; c++) {
-                    const x = c * cellSize;
-                    const y = r * cellSize;
-                    const plot = plotData[`${r}-${c}`];
-
-                    if (plot && plot.is_bed) {
-                        ctx.fillStyle = '#8B4513'; // 畝（茶色）
-                    } else {
-                        // 通路：10行おきに色を変えてインデックスを把握しやすくする
-                        ctx.fillStyle = isAlternateSection ? '#E0E0E0' : '#F5F5F5';
-                    }
-
-                    ctx.fillRect(x, y, cellSize - 0.5, cellSize - 0.5); // セルの境界を少し空ける
-
-                    if (plot && plot.crop) {
-                        ctx.fillStyle = '#2ECC71'; // 作物（緑）
-                        const padding = cellSize * 0.25;
-                        ctx.fillRect(
-                            x + padding,
-                            y + padding,
-                            cellSize - (padding * 2),
-                            cellSize - (padding * 2)
-                        );
-                    }
-                }
-            }
+        // GardenController が読み込まれていることを確認
+        if (typeof GardenController !== 'undefined') {
+            GardenController.init({
+                areaId: '{{ garden.id }}',
+                canvasId: 'garden-canvas',
+                plotDataId: 'plot_data',
+                vegetableTypesId: 'v_types_data',
+                bedDataId: 'bed_data'
+            });
+        } else {
+            console.error("GardenController がまだ読み込まれていません");
         }
     });
-    document.addEventListener('DOMContentLoaded', () => {
-            console.log("Initializing GardenEditor...");
-            if (typeof GardenEditor !== 'undefined') {
-                GardenEditor.init('{{ garden.id }}','garden-canvas', 'plot_data', 'v_types_data', 'bed_data');
-            } else 
-                console.error("GardenEditorがまだ読み込まれていません");
-            }
-        );
-
 </script>

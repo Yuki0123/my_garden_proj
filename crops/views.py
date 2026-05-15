@@ -109,22 +109,30 @@ def save_crop(request):
         data = json.loads(request.body)
         # 安全のためにトランザクションを張る（Crop作成とPlot紐付けをセットにする）
         with transaction.atomic():
+            # ログインしているユーザーの畑を取得
+            user_groups = request.user.groups.all()
+            my_garden = GardenArea.objects.filter(owner_group__in=user_groups).first()
+            if not my_garden:
+                return JsonResponse(
+                    {"status": "error", "message": "Garden not found"}, status=400
+                )
+
             # 1. まず Crop 本体を作成
             new_crop = Crop.objects.create(
                 vegetable_type_id=data["veg_id"],
                 planted_at=timezone.now().date(),
                 status="growing",
             )
-            print(data)
             # 2. 占有する範囲の Plot をすべて取得
             # start_row から start_row + height までの範囲
             target_plots = Plot.objects.filter(
-                area_id=1,  # ひとまずID=1。実際は適切に取得
+                area=my_garden,  # ユーザーのgardenを使用
                 row_index__gte=data["row"],
                 row_index__lt=data["row"] + data["height"],
                 col_index__gte=data["col"],
                 col_index__lt=data["col"] + data["width"],
             )
+            print(f"DEBUG: 取得したPlot {target_plots}")
             print(f"DEBUG: 該当Plot数 {target_plots.count()}")
             # 3. ManyToManyField にセット
             new_crop.plots.set(target_plots)
@@ -142,12 +150,18 @@ def save_crop(request):
 
 
 def get_crops(request):
-    # GardenArea ID=1 に紐付く作物を、占有マス(plots)の情報付きで取得
-    crops = Crop.objects.filter(
-        main_plot__area_id=1
-    ).distinct()  # モデル名に合わせて調整
-    # もし ManyToMany の plots を使っているなら prefetch_related を使うと速いです
-    crops = Crop.objects.prefetch_related("plots").all()
+    # ログインしているユーザーの畑を取得
+    user_groups = request.user.groups.all()
+    my_garden = GardenArea.objects.filter(owner_group__in=user_groups).first()
+    if not my_garden:
+        return JsonResponse({"crops": []})
+
+    # GardenArea に紐付く作物を、占有マス(plots)の情報付きで取得
+    crops = (
+        Crop.objects.filter(plots__area=my_garden)
+        .distinct()
+        .prefetch_related("plots", "vegetable_type")
+    )
 
     data = []
     for crop in crops:
@@ -202,19 +216,17 @@ def harvest_crop(request, crop_id):
 def get_maintenance_logs(request):
     area_id = request.GET.get("area_id")
     date_str = request.GET.get("date")
-    row = request.GET.get("r")
-    col = request.GET.get("c")
     crop_id = request.GET.get("crop_id")
     bed_id = request.GET.get("bed_id")
 
     # 1. 条件の組み立て
     conditions = Q()
     has_condition = False
-
     conditions = Q(area_id=area_id)
     # 日付での絞り込みを追加
     if date_str:
         conditions &= Q(worked_at=date_str)
+        has_condition = True
 
     if crop_id and crop_id not in ["null", "", "undefined"]:
         conditions |= Q(crop_id=crop_id)
@@ -223,8 +235,6 @@ def get_maintenance_logs(request):
     if bed_id and bed_id not in ["null", "", "undefined"]:
         conditions |= Q(bed_id=bed_id)
         has_condition = True
-    print(f"DEBUG: area_id={area_id}, crop_id={crop_id}, bed_id={bed_id}")
-    print(f"DEBUG: condition={conditions}")
 
     # 2. 条件がない場合は早期リターン（ここが重要）
     if not has_condition:

@@ -1,0 +1,13 @@
+<div>
+    <div class="uk-card uk-card-default uk-card-body">
+        <h3 class="uk-card-title uk-text-success">
+            <span uk-icon="icon: origin"></span> {{ garden.name }}
+        </h3>
+        <p class="uk-text-meta">サイズ: {{ garden.rows }} 行 × {{ garden.cols }} 列</p>
+        <hr class="uk-divider-small">
+        <p>ここに現在の畑のサマリーを表示予定です。</p>
+        <a href="{% url 'admin:crops_gardenarea_change' garden.id %}" class="uk-button uk-button-text">
+            Adminで詳しく見る
+        </a>
+    </div>
+</div>

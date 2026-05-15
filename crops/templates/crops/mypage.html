@@ -29,48 +29,28 @@
         cursor: pointer;
     }
 </style>
-<script src="{% static 'js/garden_editor.js' %}" defer></script>
-<script>
-
-</script>
+<!-- モジュール化された GardenEditor スクリプト -->
+<!-- 読み込み順序が重要: 状態 → 描画 → イベント → API → エディタ → UI → コントローラ -->
+<script src="{% static 'js/GardenState.js' %}" defer></script>
+<script src="{% static 'js/GardenRenderer.js' %}" defer></script>
+<script src="{% static 'js/GardenMouseEvents.js' %}" defer></script>
+<script src="{% static 'js/GardenAPI.js' %}" defer></script>
+<script src="{% static 'js/GardenEditor.js' %}" defer></script>
+<script src="{% static 'js/GardenUI.js' %}" defer></script>
+<script src="{% static 'js/GardenController.js' %}" defer></script>
 
 {% endblock %}
 {% block content %}
 <div class="uk-section uk-section-xsmall">
     <div class="uk-container">
-        <h1 class="uk-heading-bullet">マイガーデン</h1>
-        <p>ようこそ、{{ user.username }}さん！</p>
+        <p>{{ user.username }}さん</p>        
         {% if garden %}
-        <div class="uk-grid-match uk-child-width-1-2@m" uk-grid>
-            <div>
-                <div class="uk-card uk-card-default uk-card-body">
-                    <h3 class="uk-card-title uk-text-success">
-                        <span uk-icon="icon: origin"></span> {{ garden.name }}
-                    </h3>
-                    <p class="uk-text-meta">サイズ: {{ garden.rows }} 行 × {{ garden.cols }} 列</p>
-                    <hr class="uk-divider-small">
-                    <p>ここに現在の畑のサマリーを表示予定です。</p>
-                    <a href="{% url 'admin:crops_gardenarea_change' garden.id %}" class="uk-button uk-button-text">
-                        Adminで詳しく見る
-                    </a>
-                </div>
-            </div>
-
-            <div>
-                <div class="uk-card uk-card-secondary uk-card-body">
-                    <h3 class="uk-card-title">作業クイックアクセス</h3>
-                    <ul class="uk-list uk-list-bullet">
-                        <li>今日の作業予定: なし</li>
-                        <li>最終メンテナンス: 3日前</li>
-                    </ul>
-                    
-                </div>
-            </div>
-        </div>
-
-        <div class="uk-margin-large-top">
+        <!--<div class="uk-grid-match uk-child-width-1-2@m" uk-grid>
+             {% include 'crops/includes/summary.html' %}
+            {% include 'crops/includes/maintenance_history.html' %}
+        </div>-->
+        <div id="log-summary"></div>
         {% include 'crops/includes/dateselector.html' %}
-        </div>
 
         <div class="uk-margin-large-top">
             <div class="uk-width-1-1">
@@ -80,18 +60,18 @@
                     style="width: 100%; overflow-x: auto; background-color: #f8f8f8; border: 1px solid #ddd; line-height: 0;">
 
                     <!-- mypage.html のボタンエリア -->
-                <div type="button" class="uk-button uk-button-primary uk-button-small"
-                    style="position: absolute; top: 65x; right: 60px; z-index: 10; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
-                    uk-toggle="target: #crop-modal">
-                    <span uk-icon="plus"></span> 新しく植え付ける
-                </div>
+                    <div type="button" class="uk-button uk-button-primary uk-button-small"
+                        style="position: absolute; top: 65x; right: 60px; z-index: 10; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
+                        uk-toggle="target: #crop-modal">
+                        <span uk-icon="plus"></span> 新しく植え付ける
+                    </div>
                     <div class="editor-controls">
                         <button id="harvest-mode-btn" class="uk-button uk-button-default">
                             🌾 収穫・撤去モード: OFF
                         </button>
                     </div>
                     <div id="log-summary" class="uk-margin-small-bottom uk-flex uk-flex-middle" style="min-height: 30px;">
-                        <!-- ここに JS が <span class="uk-badge">...</span> を流し込みます -->
+                    <!-- ここに JS が <span class="uk-badge">...</span> を流し込みます -->
                     </div>
                     <canvas id="garden-canvas" style="display: block; margin: 0 auto;"></canvas>
                 </div>

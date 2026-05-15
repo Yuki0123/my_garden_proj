@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}My Garden{% endblock %}</title>
+    <title>{% block title %}{{ user.username }}s Garden{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.5/dist/css/uikit.min.css" />
     {% block extra_css %}{% endblock %}
     {% block extrahead %}{% endblock %}
@@ -16,6 +16,7 @@
         <div class="uk-navbar-left">
             <a class="uk-navbar-item uk-logo" href="/">My Garden</a>
         </div>
+        
         <div class="uk-navbar-right">
             <ul class="uk-navbar-nav uk-visible@m">
                 <li><a href="/">ホーム</a></li>
