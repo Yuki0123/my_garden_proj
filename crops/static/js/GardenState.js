@@ -33,6 +33,10 @@ const GardenState = {
     // エディタ・モード状態
     // ==========================================
     editor: {
+        mode: 'crop',        // ★追加: 'crop' (作物) か 'bed' (畝) かを区別する
+        bedId: null,         // ★追加: 編集中の畝ID
+        bedName: '',         // ★追加: 編集中の畝名
+
         active: false,
         vegId: null,
         vegName: '',
@@ -64,6 +68,10 @@ const GardenState = {
     // ==========================================
     reset() {
         this.editor = {
+            mode: 'crop',        // ★追加: 'crop' (作物) か 'bed' (畝) かを区別する
+            bedId: null,         // ★追加: 編集中の畝ID
+            bedName: '',         // ★追加: 編集中の畝名
+
             active: false,
             vegId: null,
             vegName: '',

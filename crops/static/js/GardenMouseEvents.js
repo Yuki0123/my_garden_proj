@@ -9,7 +9,15 @@ const GardenMouseEvents = {
      */
     getMousePos(e) {
         const state = GardenState;
-        const rect = state.canvas.getBoundingClientRect();
+        const rect = state.canvas.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+getBoundingClientRect();
         return {
             c: Math.floor((e.clientX - rect.left) / state.cellSize),
             r: Math.floor((e.clientY - rect.top) / state.cellSize)
@@ -21,13 +29,37 @@ const GardenMouseEvents = {
      */
     handleMouseDown(e) {
         const state = GardenState;
-        const pos = this.getMousePos(e);
+        const pos = this.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+getMousePos(e);
 
         // ===== 収穫モード =====
         if (state.isHarvestMode) {
-            const targetCrop = this.findCropAt(pos);
+            const targetCrop = this.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+findCropAt(pos);
             if (targetCrop) {
-                GardenAPI.harvestCrop(targetCrop.id);
+                GardenAPI.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+harvestCrop(targetCrop.id);
             }
             return;
         }
@@ -65,7 +97,15 @@ const GardenMouseEvents = {
                 bedId: bedData ? bedData.bed_id : null,
                 bedName: bedData ? bedData.name : null
             };
-            GardenAPI.openMaintenanceModal(targetData);
+            GardenAPI.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+openMaintenanceModal(targetData);
             return;
         }
 
@@ -78,7 +118,15 @@ const GardenMouseEvents = {
             state.editor.isResizing = true;
         }
         // 枠内を掴んだか判定
-        else if (pos.c >= state.editor.c && pos.c < state.editor.c + state.editor.w &&
+        else     /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+if (pos.c >= state.editor.c && pos.c < state.editor.c + state.editor.w &&
                  pos.r >= state.editor.r && pos.r < state.editor.r + state.editor.h) {
             state.editor.isDragging = true;
             state.editor.offset.c = pos.c - state.editor.c;
@@ -91,19 +139,43 @@ const GardenMouseEvents = {
      */
     handleMouseMove(e) {
         const state = GardenState;
-        if (!state.editor.active) return;
+            /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+if (!state.editor.active) return;
 
         const pos = this.getMousePos(e);
 
         if (state.editor.isResizing) {
-            state.editor.w = Math.max(1, pos.c - state.editor.c + 1);
+            state.editor.w = Math.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+max(1, pos.c - state.editor.c + 1);
             state.editor.h = Math.max(1, pos.r - state.editor.r + 1);
         } else if (state.editor.isDragging) {
             state.editor.c = pos.c - state.editor.offset.c;
             state.editor.r = pos.r - state.editor.offset.r;
         }
 
-        GardenRenderer.draw();
+        GardenRenderer.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+draw();
     },
 
     /**
@@ -120,7 +192,15 @@ const GardenMouseEvents = {
      */
     findCropAt(pos) {
         const state = GardenState;
-        return [...state.crops].reverse().find(crop =>
+        return [...state.crops].    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+reverse().find(crop =>
             pos.r >= crop.row && pos.r < crop.row + crop.height &&
             pos.c >= crop.col && pos.c < crop.col + crop.width
         );
@@ -132,16 +212,51 @@ const GardenMouseEvents = {
     bindEvents() {
         const state = GardenState;
 
-        state.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+        state.canvas.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+addEventListener('mousedown', (e) => this.handleMouseDown(e));
         state.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         window.addEventListener('mouseup', () => this.handleMouseUp());
 
-        // 日付変更時
-        state.currentDate.addEventListener('change', () => {
+        // 📅 日付変更時（ここを拡張します！）
+        state.currentDate.addEventListener('change', async () => {
             state.selectedDate = state.currentDate.value;
             console.log("Selected date changed:", state.selectedDate);
-            if (typeof GardenAPI.loadMaintenanceLogs === 'function') {
-                GardenAPI.loadMaintenanceLogs();
+
+            try {
+                if (GardenAPI?.loadMaintenanceLogs) {
+                    GardenAPI.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+loadMaintenanceLogs();
+                }
+                if (GardenAPI?.loadSavedBeds) {
+                    console.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+log("Reloading beds and crops for the new date...");
+                    await GardenAPI.loadSavedBeds();
+                } else {
+                    console.warn('GardenAPI.loadSavedBeds is not available yet');
+                }
+            } catch (err) {
+                console.error('Date change handler error:', err);
             }
         });
     }

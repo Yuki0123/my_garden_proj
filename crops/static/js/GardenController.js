@@ -10,7 +10,15 @@ const GardenController = {
     init(config) {
         const state = GardenState;
 
-        console.log("GardenController: Initializing...", config);
+        console.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+log("GardenController: Initializing...", config);
 
         // ==========================================
         // 1. DOM要素と基本設定
@@ -18,7 +26,15 @@ const GardenController = {
         state.areaId = config.areaId;
         state.canvas = document.getElementById(config.canvasId);
         if (!state.canvas) {
-            console.error("Canvas element not found:", config.canvasId);
+            console.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+error("Canvas element not found:", config.canvasId);
             return;
         }
 
@@ -29,7 +45,15 @@ const GardenController = {
         // 2. 日付の初期設定
         // ==========================================
         if (state.currentDate && !state.currentDate.value) {
-            const now = new Date();
+            const now = new     /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+Date();
             const y = now.getFullYear();
             const m = String(now.getMonth() + 1).padStart(2, '0');
             const d = String(now.getDate()).padStart(2, '0');
@@ -43,20 +67,52 @@ const GardenController = {
         // ==========================================
         // 3. JSON データを解析
         // ==========================================
-        const dataElement = document.getElementById(config.plotDataId);
+        const dataElement = document.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+getElementById(config.plotDataId);
         if (dataElement) {
-            state.plotData = JSON.parse(dataElement.textContent);
+            state.plotData = JSON.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+parse(dataElement.textContent);
         }
 
         const vTypesElement = document.getElementById(config.vegetableTypesId);
         if (vTypesElement) {
-            state.vTypes = JSON.parse(vTypesElement.textContent);
+            state.vTypes = JSON.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+parse(vTypesElement.textContent);
             GardenUI.renderVegetablePicker();
         }
 
         const bedDataElement = document.getElementById(config.bedDataId);
         if (bedDataElement) {
-            state.beds = JSON.parse(bedDataElement.textContent);
+            state.beds = JSON.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+parse(bedDataElement.textContent);
         }
 
         // ==========================================
@@ -67,7 +123,15 @@ const GardenController = {
         // 収穫モードボタン
         const harvestBtn = document.getElementById('harvest-mode-btn');
         if (harvestBtn) {
-            harvestBtn.addEventListener('click', () => {
+            harvestBtn.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+addEventListener('click', () => {
                 state.isHarvestMode = !state.isHarvestMode;
                 GardenUI.updateHarvestModeUI(state.isHarvestMode);
             });

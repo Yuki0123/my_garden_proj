@@ -83,7 +83,6 @@ const GardenAPI = {
 
     /**
      * 作物を保存
-     */
     savePlanting() {
         const state = GardenState;
         const data = {
@@ -107,7 +106,9 @@ const GardenAPI = {
                 alert('登録しました！');
                 this.loadSavedCrops();
             });
-    },
+    },     
+    */
+
 
     /**
      * 作物を収穫
@@ -262,4 +263,99 @@ const GardenAPI = {
             });
     },
 
+    /**
+     * 選択された範囲に新しい畝を登録する
+     */
+    async saveBedLayout() {
+        const state = GardenState;
+
+        // エディタが起動していない、または畝モードじゃない場合はスキップ
+        if (!state.editor.active || state.editor.mode !== 'bed') {
+            UIkit.notification({ message: '⚠️ 畝の範囲が選択されていません', status: 'warning' });
+            return;
+        }
+
+        const url = `/garden/api/save_bed_layout/`;
+        const btn = document.getElementById('save-bed-btn');
+        if (btn) {
+            btn.innerHTML = '<span uk-spinner="ratio: 0.8"></span> 登録中...';
+            btn.disabled = true;
+        }
+
+        // ★ここがポイント！選択されている部分のデータだけを抽出して送る
+        const requestData = {
+            area_id: state.areaId,
+            bed_id: state.editor.bedId,     // 既存の畝の編集ならID、新規登録なら null
+            name: state.editor.bedName,
+            row: state.editor.r,            // 選択された開始行
+            col: state.editor.c,            // 選択された開始列
+            width: state.editor.w,          // 選択されたマスの幅
+            height: state.editor.h,         // 選択されたマスの高さ
+            date: state.selectedDate        // 登録日（必要に応じて）
+        };
+        console.log("Saving bed layout with data:", requestData);
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (response.ok) {
+                UIkit.notification({ message: '🎵 畝を登録しました！', status: 'success' });
+
+                // 編集枠を消してリセット
+                if (typeof GardenEditor !== 'undefined' && GardenEditor.cancelEditing) {
+                    GardenEditor.cancelEditing();
+                } else {
+                    state.reset();
+                    GardenRenderer.draw();
+                }
+
+                // データベースから最新の畑データを再読み込みして画面を更新
+                // (もし作物の時のように loadSavedBeds のような関数があればここで呼ぶ)
+                await this.loadSavedBeds();
+
+            } else {
+                throw new Error('登録に失敗しました');
+            }
+        } catch (error) {
+            console.error("畝の登録失敗:", error);
+            UIkit.notification({ message: '❌ エラーが発生しました', status: 'danger' });
+        } finally {
+            if (btn) {
+                btn.innerText = 'レイアウトを保存';
+                btn.disabled = false;
+            }
+        }
+    },
+
+    /**
+      * サーバーから最新の畑データ（畝情報・プロット情報）を両方引き抜いて画面を完全同期
+      */
+    async loadSavedBeds() {
+        const state = GardenState;
+        const url = `/garden/api/get_beds/?area_id=${state.areaId}&date=${state.selectedDate}`;
+
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                const result = await response.json();
+
+                // 💡 両方のデータを一発で完全同期！
+                state.beds = result.bed_data;      // 畝の基本情報を更新
+                state.plotData = result.plot_data;  // マス目の描画状態（床、作物）を更新
+
+                console.log("畑全体の同期が完了しました。再描画します。");
+
+                // キャンバスを再描画
+                GardenRenderer.draw();
+            }
+        } catch (error) {
+            console.error("畑データの完全リフレッシュに失敗:", error);
+        }
+    }
 };

@@ -9,7 +9,15 @@ const GardenRenderer = {
      */
     draw() {
         const state = GardenState;
-        const selectedDate = new Date(state.currentDate.value);
+        const selectedDate = new     /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+Date(state.currentDate.value);
 
         // Canvas クリア
         state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
@@ -19,7 +27,15 @@ const GardenRenderer = {
 
         // 本日のお世話ログアイコンを描画
         if (state.maintenanceLogs && Array.isArray(state.maintenanceLogs)) {
-            state.maintenanceLogs.forEach(log => {
+            state.maintenanceLogs.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+forEach(log => {
                 const x = log.col * state.cellSize;
                 const y = log.row * state.cellSize;
                 
@@ -42,13 +58,29 @@ const GardenRenderer = {
             
             // 植え付け日が今日以前 かつ (収穫されていない または 収穫日が今日より先)
             if (pAt <= selectedDate && (!hAt || selectedDate < hAt)) {
-                this.drawCrop(crop);
+                this.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+drawCrop(crop);
             }
         });
 
         // エディタプレビューを描画（編集中の場合）
         if (state.editor.active) {
-            this.drawPreview();
+            this.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+drawPreview();
         }
     },
 
@@ -58,8 +90,24 @@ const GardenRenderer = {
     drawGrid() {
         const state = GardenState;
 
-        for (let r = 0; r < state.rows; r++) {
-            const isAlt = Math.floor(r / 30) % 2 === 0;
+            /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+for (let r = 0; r < state.rows; r++) {
+            const isAlt = Math.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+floor(r / 30) % 2 === 0;
             for (let c = 0; c < state.cols; c++) {
                 const x = c * state.cellSize;
                 const y = r * state.cellSize;
@@ -69,7 +117,15 @@ const GardenRenderer = {
                 let fillColor = (plot && plot.is_bed) ? '#8b45136e' : (isAlt ? '#cfd7be' : '#e5ead8');
 
                 state.ctx.fillStyle = fillColor;
-                state.ctx.fillRect(x, y, state.cellSize-0.2, state.cellSize-0.2);
+                state.ctx.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+fillRect(x, y, state.cellSize-0.2, state.cellSize-0.2);
             }
         }
     },
@@ -80,7 +136,15 @@ const GardenRenderer = {
     drawCrop(crop) {
         const state = GardenState;
         
-        if (!crop.icon_url) return;
+            /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+if (!crop.icon_url) return;
 
         const img = new Image();
         img.src = crop.icon_url;
@@ -109,14 +173,46 @@ const GardenRenderer = {
 
             if (crop.planting_method === 'dense') {
                 // 【筋蒔き/密植】間隔に合わせて並べて描画
-                for (let y = spacingPx / 2; y < areaH; y += spacingPx) {
-                    for (let x = spacingPx / 2; x < areaW; x += spacingPx) {
+                    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+for (let y = spacingPx / 2; y < areaH; y += spacingPx) {
+                        /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+for (let x = spacingPx / 2; x < areaW; x += spacingPx) {
                         const targetX = areaX + x - (iconW / 2);
                         const targetY = areaY + y - (iconH / 2);
 
                         // エリアからはみ出さないかチェック
-                        if (x + iconW / 2 <= areaW && y + iconH / 2 <= areaH) {
-                            state.ctx.drawImage(img, targetX, targetY, iconW, iconH);
+                            /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+if (x + iconW / 2 <= areaW && y + iconH / 2 <= areaH) {
+                            state.ctx.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+drawImage(img, targetX, targetY, iconW, iconH);
                         }
                     }
                 }
@@ -133,7 +229,15 @@ const GardenRenderer = {
 
                 const targetX = areaX + (areaW - drawW) / 2;
                 const targetY = areaY + (areaH - drawH) / 2;
-                state.ctx.drawImage(img, targetX, targetY, drawW, drawH);
+                state.ctx.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+drawImage(img, targetX, targetY, drawW, drawH);
             }
         };
     },
@@ -148,12 +252,27 @@ const GardenRenderer = {
         const w = state.editor.w * state.cellSize;
         const h = state.editor.h * state.cellSize;
 
-        // 半透明のエリア
-        state.ctx.fillStyle = 'rgba(52, 152, 219, 0.4)';
-        state.ctx.fillRect(x, y, w, h);
 
-        // 青い枠
-        state.ctx.strokeStyle = '#3498db';
+            /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+if (state.editor.mode === 'bed') {
+            // 畝編集時は「土っぽく」茶色い半透明にする
+            state.ctx.fillStyle = 'rgba(139, 69, 19, 0.4)';
+            state.ctx.fillRect(x, y, w, h);
+            state.ctx.strokeStyle = '#8b4513';
+        } else {
+            // 通常の作物編集時はこれまでの青
+            state.ctx.fillStyle = 'rgba(52, 152, 219, 0.4)';
+            state.ctx.fillRect(x, y, w, h);
+            state.ctx.strokeStyle = '#3498db';
+        }
+
         state.ctx.lineWidth = 2;
         state.ctx.strokeRect(x, y, w, h);
 

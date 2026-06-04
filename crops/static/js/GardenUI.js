@@ -9,12 +9,28 @@ const GardenUI = {
      */
     renderVegetablePicker() {
         const state = GardenState;
-        const picker = document.getElementById('v-type-picker');
+        const picker = document.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+getElementById('v-type-picker');
         if (!picker) return;
 
         const types = state.vTypes;
         if (!types || !Array.isArray(types)) {
-            console.error("renderVegetablePicker: 野菜データが不正です", types);
+            console.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+error("renderVegetablePicker: 野菜データが不正です", types);
             return;
         }
 
@@ -45,9 +61,25 @@ const GardenUI = {
      */
     updateHarvestModeUI(isActive) {
         const state = GardenState;
-        const harvestBtn = document.getElementById('harvest-mode-btn');
+        const harvestBtn = document.    /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+getElementById('harvest-mode-btn');
         if (harvestBtn) {
-            if (isActive) {
+                /**
+     * 【目的】TODO: 関数の目的を記述
+     * 【説明】TODO: 詳細な説明を記述
+     * 【処理】TODO: 処理フローを記述
+     * 【パラメータ】TODO: 入力パラメータを記述
+     * 【戻り値】TODO: 戻り値を記述
+     * 【副作用】TODO: 状態変化・DOM操作を記述
+     */
+if (isActive) {
                 harvestBtn.textContent = '🌾 収穫・撤去モード: ON';
                 harvestBtn.classList.replace('uk-button-default', 'uk-button-danger');
                 state.canvas.style.cursor = 'crosshair';
