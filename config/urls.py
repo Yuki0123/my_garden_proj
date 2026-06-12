@@ -24,10 +24,8 @@ from django.views.generic import RedirectView
 urlpatterns = [
     path("accounts/", include("django.contrib.auth.urls")),
     path("admin/", admin.site.urls),
-    path("garden/", include("crops.urls")),
-    path(
-        "", RedirectView.as_view(url="/garden/mypage/"), name="root"
-    ),  # トップページも crops アプリの URL を使う]
+    path("garden/", include("garden.urls")),
+    path("", RedirectView.as_view(url="/garden/"), name="root"),
 ]
 
 
