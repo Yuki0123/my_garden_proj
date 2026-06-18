@@ -716,20 +716,13 @@ function buildOverview() {
     return img;
   };
 
-  const placed = []; // 個体植えの近接チェック用
   for (const crop of crops) {
     if (!crop.icon_url) continue;
 
     if (crop.planting_method === 'individual') {
-      // 1点レコード：同タイプが近すぎるものは間引く
+      // 1点レコード：植え付けた位置にそのまま表示
       const cx = OV_PAD + (crop.col_start + 0.5) * CELL;
       const cy = OV_PAD + (crop.row_start + 0.5) * CELL;
-      const tooClose = placed.some(p =>
-        p.vtId === crop.vegetable_type_id &&
-        Math.hypot(p.cx - cx, p.cy - cy) < minDist
-      );
-      if (tooClose) continue;
-      placed.push({ cx, cy, vtId: crop.vegetable_type_id });
       const img = placeOvIcon(cx, cy);
       img.src = crop.icon_url;
       img.alt = crop.name;

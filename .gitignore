@@ -13,7 +13,10 @@ env/
 *.log
 local_settings.py
 db.sqlite3
-media/
+media/*
+!media/vegetables/
+media/vegetables/*
+!media/vegetables/icons/
 
 # Static files
 staticfiles/
