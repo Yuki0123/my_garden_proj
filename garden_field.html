@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>My Garden</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green: #5a7a4a;
+  --green-light: #7a9a6a;
+  --accent: #e07040;
+  --bg: #f5f0ea;
+  --white: #ffffff;
+  --text: #2a2018;
+  --text-soft: #7a6a58;
+  --bed: #c8a878;
+  --bed-alt: #b89868;
+  --path: #ddd0bc;
+  --border: #e0d8ce;
+}
+
+body {
+  font-family: 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+header {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  z-index: 100;
+}
+header h1 { font-size: 17px; font-weight: 700; color: var(--green); }
+.header-sub { font-size: 11px; color: var(--text-soft); margin-top: 1px; }
+
+/* View toggle */
+.view-toggle {
+  display: flex;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+.toggle-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toggle-btn.active {
+  background: var(--white);
+  color: var(--green);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Main */
+main {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ═══════════════════════════════
+   OVERVIEW MODE
+═══════════════════════════════ */
+#overviewPane {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px;
+  background: var(--bg);
+}
+
+.field-overview {
+  display: inline-block;
+  background: #e8ddd0;
+  border-radius: 6px;
+  padding: 8px;
+  border: 1px solid #d0c0a8;
+}
+
+.overview-bed-group {
+  margin-bottom: 0;
+}
+
+/* Bed row in overview */
+.overview-bed {
+  display: flex;
+  cursor: pointer;
+  position: relative;
+  transition: filter 0.15s;
+}
+.overview-bed:hover { filter: brightness(1.05); }
+.overview-bed.selected { outline: 2px solid var(--green); outline-offset: 1px; z-index: 1; }
+
+/* Path row in overview */
+.overview-path {
+  background: var(--path);
+}
+
+/* Overview cell */
+.ov-cell {
+  width: 4px;
+  height: 4px;
+  flex-shrink: 0;
+}
+.ov-cell.bed-cell { background: var(--bed); }
+.ov-cell.bed-cell.alt { background: var(--bed-alt); }
+.ov-cell.has-crop { background: #6a9a4a; }
+.ov-cell.path-cell { background: var(--path); }
+
+/* Bed label overlay */
+.bed-label {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8px;
+  color: rgba(60,40,20,0.6);
+  pointer-events: none;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+/* ═══════════════════════════════
+   DETAIL MODE
+═══════════════════════════════ */
+#detailPane {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detail-header {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.back-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-soft);
+}
+.detail-title { font-size: 14px; font-weight: 700; color: var(--green); }
+.detail-sub { font-size: 11px; color: var(--text-soft); }
+
+.detail-grid-wrapper {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px;
+  background: var(--bg);
+}
+
+.detail-grid {
+  display: inline-block;
+  background: #e0d0b8;
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.detail-row { display: flex; }
+
+.d-cell {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(160,120,80,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  background: var(--bed);
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.1s;
+}
+.d-cell:nth-child(even) { background: var(--bed-alt); }
+.d-cell.selected-start { background: rgba(90,122,74,0.6) !important; outline: 2px solid var(--green); z-index:1; }
+.d-cell.in-range { background: rgba(90,122,74,0.3) !important; outline: 1px solid var(--green-light); }
+.d-cell.selected-end { background: rgba(90,122,74,0.6) !important; outline: 2px solid var(--green); z-index:1; }
+
+/* col header */
+.col-header { display: flex; padding-left: 6px; }
+.col-hcell {
+  width: 36px;
+  text-align: center;
+  font-size: 8px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+/* Bottom panel */
+.bottom-panel {
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+
+.steps {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+.step { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-soft); }
+.step-num {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #e0d8ce;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: var(--text-soft);
+}
+.step.active .step-num { background: var(--green); color: var(--white); }
+.step.done .step-num { background: var(--green-light); color: var(--white); }
+.step-arrow { color: #c0b8ae; font-size: 10px; }
+
+.veggie-picker {
+  display: flex; gap: 6px; overflow-x: auto;
+  scrollbar-width: none; padding-bottom: 2px;
+}
+.veggie-picker::-webkit-scrollbar { display: none; }
+.veggie-item {
+  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 8px; border-radius: 8px;
+  border: 2px solid var(--border); background: var(--bg);
+  cursor: pointer; transition: all 0.15s; min-width: 52px;
+}
+.veggie-item.selected { border-color: var(--green); background: #e8f0e0; }
+.veggie-icon { font-size: 22px; }
+.veggie-name { font-size: 9px; color: var(--text-soft); }
+.veggie-spacing { font-size: 8px; color: var(--green-light); font-weight: 600; }
+
+.tap-instruction {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; background: #edf5e8; border-radius: 8px;
+  border-left: 3px solid var(--green);
+  font-size: 12px; color: var(--green); font-weight: 500;
+}
+
+.range-info {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; background: var(--bg); border-radius: 6px;
+  margin-top: 6px; font-size: 12px;
+}
+.range-info .label { color: var(--text-soft); }
+.range-info .value { font-weight: 600; color: var(--text); }
+
+#spacingWarn {
+  display: none;
+  background: #fff3e0; border-left: 3px solid var(--accent);
+  border-radius: 6px; padding: 6px 10px;
+  font-size: 11px; color: #a04010; margin-top: 6px; line-height: 1.6;
+}
+
+.btn-confirm {
+  width: 100%; padding: 12px;
+  background: var(--green); color: var(--white);
+  border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer; margin-top: 8px;
+  transition: background 0.15s;
+}
+.btn-confirm:disabled { background: #c0b8ae; cursor: default; }
+.btn-reset {
+  width: 100%; padding: 8px;
+  background: transparent; color: var(--text-soft);
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 12px; cursor: pointer; margin-top: 4px;
+}
+
+.toast {
+  position: fixed; bottom: 120px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--text); color: var(--white);
+  padding: 8px 18px; border-radius: 20px; font-size: 12px;
+  opacity: 0; transition: all 0.3s; pointer-events: none;
+  white-space: nowrap; z-index: 300;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🌱 My Garden</h1>
+    <div class="header-sub">7m × 18m　畝15本</div>
+  </div>
+  <div class="view-toggle">
+    <button class="toggle-btn active" id="btnOverview" onclick="showOverview()">🗺 全体</button>
+    <button class="toggle-btn" id="btnDetail" onclick="showDetailCurrent()">✏️ 編集</button>
+  </div>
+</header>
+
+<main>
+  <!-- OVERVIEW PANE -->
+  <div id="overviewPane">
+    <div class="field-overview" id="fieldOverview"></div>
+  </div>
+
+  <!-- DETAIL PANE -->
+  <div id="detailPane" class="hidden">
+    <div class="detail-header">
+      <button class="back-btn" onclick="showOverview()">← 全体</button>
+      <div>
+        <div class="detail-title" id="detailTitle">畝1</div>
+        <div class="detail-sub" id="detailSub">80cm × 700cm</div>
+      </div>
+    </div>
+
+    <div class="detail-grid-wrapper">
+      <div class="col-header" id="colHeader"></div>
+      <div class="detail-grid" id="detailGrid"></div>
+    </div>
+
+    <div class="bottom-panel">
+      <div class="steps">
+        <div class="step active" id="s1"><div class="step-num">1</div><span>野菜</span></div>
+        <div class="step-arrow">›</div>
+        <div class="step" id="s2"><div class="step-num">2</div><span>始点</span></div>
+        <div class="step-arrow">›</div>
+        <div class="step" id="s3"><div class="step-num">3</div><span>終点</span></div>
+      </div>
+
+      <div id="stepUI1">
+        <div class="veggie-picker" id="veggiePicker"></div>
+      </div>
+      <div id="stepUI2" class="hidden">
+        <div class="tap-instruction"><span>👆</span><span>始点をタップ</span></div>
+        <button class="btn-reset" onclick="resetPlant()">← やり直す</button>
+      </div>
+      <div id="stepUI3" class="hidden">
+        <div class="tap-instruction"><span>👆</span><span>終点をタップ</span></div>
+        <div class="range-info" id="rangeInfo" style="display:none">
+          <span class="label">選択範囲</span>
+          <span class="value" id="rangeText">—</span>
+        </div>
+        <div id="spacingWarn"></div>
+        <button class="btn-confirm" id="confirmBtn" onclick="confirmPlant()" disabled>植え付ける</button>
+        <button class="btn-reset" onclick="goStep(2)">← 始点を変える</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="legend" id="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#6a9a4a"></div>作物あり</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#c8a878"></div>畝（空）</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ddd0bc"></div>通路</div>
+  <div class="legend-item" style="color:#5a7a4a;font-weight:600;">タップで編集 →</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════ CONFIG ═══════════════
+const FIELD_COLS = 70;   // 7m
+const BED_ROWS   = 8;    // 80cm
+const PATH_ROWS  = 4;    // 40cm
+const N_BEDS     = 15;
+const TOTAL_ROWS = N_BEDS * (BED_ROWS + PATH_ROWS); // 180
+
+// Which global rows are paths
+function isPathRow(r) {
+  const pos = r % (BED_ROWS + PATH_ROWS);
+  return pos >= BED_ROWS;
+}
+function bedIndexOfRow(r) {
+  return Math.floor(r / (BED_ROWS + PATH_ROWS));
+}
+function localRowInBed(r) {
+  return r % (BED_ROWS + PATH_ROWS);
+}
+
+// ═══════════════ DATA ═══════════════
+// gridData[row][col] = null | { icon, name }
+const gridData = Array.from({length: TOTAL_ROWS}, () => Array(FIELD_COLS).fill(null));
+
+// Seed some example data
+const examples = [
+  { bedIdx:0, rows:[0,1,2,3,4,5,6,7], c0:0, c1:40, icon:'🥬', name:'レタス' },
+  { bedIdx:1, rows:[0,1,2,3,4,5,6,7], c0:0, c1:69, icon:'🥕', name:'ニンジン' },
+  { bedIdx:3, rows:[0,1,2,3],          c0:10, c1:60, icon:'🍅', name:'トマト' },
+  { bedIdx:5, rows:[0,1,2,3,4,5,6,7], c0:0, c1:69, icon:'🧅', name:'タマネギ' },
+];
+examples.forEach(e => {
+  const baseRow = e.bedIdx * (BED_ROWS + PATH_ROWS);
+  e.rows.forEach(lr => {
+    for(let c = e.c0; c <= e.c1; c++) {
+      gridData[baseRow + lr][c] = { icon: e.icon, name: e.name };
+    }
+  });
+});
+
+// ═══════════════ VEGGIES ═══════════════
+const veggies = [
+  { id:'tomato',   icon:'🍅', name:'トマト',      spacing:5, rowSpacing:5 },
+  { id:'cucumber', icon:'🥒', name:'キュウリ',    spacing:5, rowSpacing:5 },
+  { id:'eggplant', icon:'🍆', name:'ナス',        spacing:5, rowSpacing:5 },
+  { id:'carrot',   icon:'🥕', name:'ニンジン',    spacing:1, rowSpacing:2 },
+  { id:'onion',    icon:'🧅', name:'タマネギ',    spacing:1, rowSpacing:2 },
+  { id:'potato',   icon:'🥔', name:'ジャガイモ',  spacing:3, rowSpacing:3 },
+  { id:'pepper',   icon:'🫑', name:'ピーマン',    spacing:5, rowSpacing:5 },
+  { id:'corn',     icon:'🌽', name:'トウモロコシ',spacing:3, rowSpacing:3 },
+  { id:'lettuce',  icon:'🥬', name:'レタス',      spacing:3, rowSpacing:3 },
+];
+
+// ═══════════════ STATE ═══════════════
+let currentBedIdx = 0;
+let plantStep = 1;
+let selectedVeggie = null;
+let startCell = null;
+let endCell = null;
+
+// ═══════════════ OVERVIEW ═══════════════
+function buildOverview() {
+  const container = document.getElementById('fieldOverview');
+  container.innerHTML = '';
+  for(let r = 0; r < TOTAL_ROWS; r++) {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.position = 'relative';
+    if(isPathRow(r)) {
+      row.style.background = 'var(--path)';
+      for(let c = 0; c < FIELD_COLS; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'ov-cell path-cell';
+        row.appendChild(cell);
+      }
+    } else {
+      const bedIdx = bedIndexOfRow(r);
+      const localR = localRowInBed(r);
+      row.className = 'overview-bed';
+      row.dataset.bed = bedIdx;
+
+      // Label on first row of bed
+      if(localR === 0) {
+        const lbl = document.createElement('div');
+        lbl.className = 'bed-label';
+        lbl.textContent = `畝${bedIdx+1}`;
+        row.appendChild(lbl);
+      }
+
+      for(let c = 0; c < FIELD_COLS; c++) {
+        const cell = document.createElement('div');
+        const hasCrop = gridData[r][c] !== null;
+        cell.className = 'ov-cell bed-cell' + (c%2===1?' alt':'') + (hasCrop?' has-crop':'');
+        row.appendChild(cell);
+      }
+
+      row.addEventListener('click', () => {
+        openBed(bedIdx);
+      });
+    }
+    container.appendChild(row);
+  }
+}
+
+function showOverview() {
+  document.getElementById('overviewPane').classList.remove('hidden');
+  document.getElementById('detailPane').classList.add('hidden');
+  document.getElementById('legend').style.display = 'flex';
+  document.getElementById('btnOverview').classList.add('active');
+  document.getElementById('btnDetail').classList.remove('active');
+  buildOverview(); // refresh
+}
+
+function showDetailCurrent() {
+  openBed(currentBedIdx);
+}
+
+// ═══════════════ DETAIL ═══════════════
+function openBed(bedIdx) {
+  currentBedIdx = bedIdx;
+  document.getElementById('overviewPane').classList.add('hidden');
+  document.getElementById('detailPane').classList.remove('hidden');
+  document.getElementById('legend').style.display = 'none';
+  document.getElementById('btnOverview').classList.remove('active');
+  document.getElementById('btnDetail').classList.add('active');
+
+  document.getElementById('detailTitle').textContent = `畝${bedIdx+1}`;
+  document.getElementById('detailSub').textContent = `80cm × 700cm（8行 × 70列）`;
+
+  buildDetailGrid(bedIdx);
+  resetPlant();
+}
+
+function buildDetailGrid(bedIdx) {
+  const baseRow = bedIdx * (BED_ROWS + PATH_ROWS);
+
+  // Col header (every 10 cols = 1m)
+  const colHeader = document.getElementById('colHeader');
+  colHeader.innerHTML = '';
+  for(let c = 0; c < FIELD_COLS; c++) {
+    const h = document.createElement('div');
+    h.className = 'col-hcell';
+    h.textContent = c % 10 === 0 ? `${c/10}m` : '';
+    colHeader.appendChild(h);
+  }
+
+  const grid = document.getElementById('detailGrid');
+  grid.innerHTML = '';
+  for(let lr = 0; lr < BED_ROWS; lr++) {
+    const globalR = baseRow + lr;
+    const row = document.createElement('div');
+    row.className = 'detail-row';
+    for(let c = 0; c < FIELD_COLS; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'd-cell';
+      cell.dataset.lr = lr;
+      cell.dataset.c = c;
+      const crop = gridData[globalR][c];
+      if(crop) cell.textContent = crop.icon;
+      cell.addEventListener('click', onDetailCellClick);
+      row.appendChild(cell);
+    }
+    grid.appendChild(row);
+  }
+}
+
+function getDetailCell(lr, c) {
+  return document.querySelector(`.d-cell[data-lr="${lr}"][data-c="${c}"]`);
+}
+
+// ═══════════════ PLANT FLOW ═══════════════
+function buildVeggiePicker() {
+  const picker = document.getElementById('veggiePicker');
+  picker.innerHTML = '';
+  veggies.forEach(v => {
+    const item = document.createElement('div');
+    item.className = 'veggie-item';
+    item.dataset.id = v.id;
+    item.innerHTML = `<span class="veggie-icon">${v.icon}</span><span class="veggie-name">${v.name}</span><span class="veggie-spacing">${v.spacing*10}cm</span>`;
+    item.addEventListener('click', () => selectVeggie(v));
+    picker.appendChild(item);
+  });
+}
+
+function selectVeggie(v) {
+  selectedVeggie = v;
+  document.querySelectorAll('.veggie-item').forEach(el =>
+    el.classList.toggle('selected', el.dataset.id === v.id));
+  goStep(2);
+}
+
+function goStep(n) {
+  plantStep = n;
+  document.getElementById('stepUI1').classList.toggle('hidden', n!==1);
+  document.getElementById('stepUI2').classList.toggle('hidden', n!==2);
+  document.getElementById('stepUI3').classList.toggle('hidden', n!==3);
+  ['s1','s2','s3'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('active','done');
+    if(i+1===n) el.classList.add('active');
+    else if(i+1<n) el.classList.add('done');
+  });
+  if(n!==3) {
+    document.getElementById('rangeInfo').style.display = 'none';
+    document.getElementById('spacingWarn').style.display = 'none';
+    document.getElementById('confirmBtn').disabled = true;
+  }
+  clearDetailHighlight();
+}
+
+function resetPlant() {
+  selectedVeggie = null;
+  startCell = null;
+  endCell = null;
+  document.querySelectorAll('.veggie-item').forEach(el => el.classList.remove('selected'));
+  goStep(1);
+}
+
+function onDetailCellClick(e) {
+  const cell = e.currentTarget;
+  const lr = parseInt(cell.dataset.lr);
+  const c = parseInt(cell.dataset.c);
+
+  if(plantStep === 2) {
+    startCell = {lr, c};
+    endCell = null;
+    clearDetailHighlight();
+    getDetailCell(lr,c).classList.add('selected-start');
+    goStep(3);
+    getDetailCell(lr,c).classList.add('selected-start');
+  } else if(plantStep === 3) {
+    endCell = {lr, c};
+    highlightDetailRange();
+    updateRangeInfo();
+    document.getElementById('confirmBtn').disabled = false;
+  }
+}
+
+function clearDetailHighlight() {
+  document.querySelectorAll('.d-cell').forEach(el =>
+    el.classList.remove('selected-start','in-range','selected-end'));
+}
+
+function highlightDetailRange() {
+  clearDetailHighlight();
+  if(!startCell || !endCell) return;
+  const minLr = Math.min(startCell.lr, endCell.lr), maxLr = Math.max(startCell.lr, endCell.lr);
+  const minC  = Math.min(startCell.c,  endCell.c),  maxC  = Math.max(startCell.c,  endCell.c);
+  for(let lr=minLr; lr<=maxLr; lr++) {
+    for(let c=minC; c<=maxC; c++) {
+      const cell = getDetailCell(lr,c);
+      if(!cell) continue;
+      if(lr===startCell.lr && c===startCell.c) cell.classList.add('selected-start');
+      else if(lr===endCell.lr && c===endCell.c) cell.classList.add('selected-end');
+      else cell.classList.add('in-range');
+    }
+  }
+}
+
+function updateRangeInfo() {
+  if(!startCell || !endCell || !selectedVeggie) return;
+  const cols = Math.abs(endCell.c - startCell.c) + 1;
+  const rows = Math.abs(endCell.lr - startCell.lr) + 1;
+  const count = cols * rows;
+  document.getElementById('rangeText').textContent =
+    `${rows}行 × ${cols}列 = ${count}マス（${rows*10}cm × ${cols*10}cm）`;
+  document.getElementById('rangeInfo').style.display = 'flex';
+
+  const v = selectedVeggie;
+  const warnings = [];
+  if(cols < v.spacing)    warnings.push(`株間 ${cols*10}cm（推奨 ${v.spacing*10}cm以上）`);
+  if(rows < v.rowSpacing) warnings.push(`条間 ${rows*10}cm（推奨 ${v.rowSpacing*10}cm以上）`);
+
+  const warnEl = document.getElementById('spacingWarn');
+  if(warnings.length > 0) {
+    warnEl.innerHTML = warnings.map(w=>`⚠️ ${w}`).join('<br>');
+    warnEl.style.display = 'block';
+    document.getElementById('confirmBtn').style.background = 'var(--accent)';
+    document.getElementById('confirmBtn').textContent = '⚠️ このまま植え付ける';
+  } else {
+    warnEl.style.display = 'none';
+    document.getElementById('confirmBtn').style.background = 'var(--green)';
+    document.getElementById('confirmBtn').textContent = '✓ 植え付ける';
+  }
+}
+
+function confirmPlant() {
+  if(!selectedVeggie || !startCell || !endCell) return;
+  const baseRow = currentBedIdx * (BED_ROWS + PATH_ROWS);
+  const minLr = Math.min(startCell.lr, endCell.lr), maxLr = Math.max(startCell.lr, endCell.lr);
+  const minC  = Math.min(startCell.c,  endCell.c),  maxC  = Math.max(startCell.c,  endCell.c);
+  for(let lr=minLr; lr<=maxLr; lr++) {
+    for(let c=minC; c<=maxC; c++) {
+      gridData[baseRow+lr][c] = { icon: selectedVeggie.icon, name: selectedVeggie.name };
+      const cell = getDetailCell(lr,c);
+      if(cell) cell.textContent = selectedVeggie.icon;
+    }
+  }
+  clearDetailHighlight();
+  showToast(`${selectedVeggie.icon} ${selectedVeggie.name}を植え付けました`);
+  resetPlant();
+}
+
+// ═══════════════ UTILS ═══════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ═══════════════ INIT ═══════════════
+buildOverview();
+buildVeggiePicker();
+</script>
+</body>
+</html>

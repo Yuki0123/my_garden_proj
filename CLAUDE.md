@@ -3,7 +3,7 @@
 ## プロジェクト概要
 
 Djangoベースの畑管理アプリ。個人の農地（7m×18m）を10cm単位のグリッドで管理する。
-ConoHa VPS（Nginx + Gunicorn + PostgreSQL）にデプロイ済み。GitHub Actions CI/CD。
+ConoHa VPS（Nginx + Gunicorn + Supabase PostgreSQL）にデプロイ済み。GitHub Actions CI/CD。
 
 ---
 
@@ -154,7 +154,7 @@ UIのフローも植え付け方法で分岐する：
 ## 技術スタック
 
 - Django（バックエンド）
-- PostgreSQL（ConoHa VPS上でlocalhost運用）
+- Supabase（PostgreSQL）
 - Nginx + Gunicorn（ConoHa VPS）
 - JavaScript（フロントエンド、クラスベースでリファクタリング済み）
   - `GardenEditor`, `GardenAPI`, `GardenController`等のクラス構成
@@ -169,9 +169,10 @@ my_garden_proj/          ← VSCodeのルート、CLAUDE.mdはここ
 ├── .github/
 ├── .venv/               ← 仮想環境（.venv統一）
 ├── accounts/
+├── calendar_app/
 ├── config/              ← Django設定（settings.py, urls.py等）
 ├── crops/               ← 旧app（廃止予定）
-├── garden/              ← 新app
+├── garden/               ← 新app（新規作成予定）
 ├── media/
 ├── templates/
 ├── manage.py
@@ -191,7 +192,7 @@ my_garden_proj/          ← VSCodeのルート、CLAUDE.mdはここ
   5. views/urls/templatesを`garden`に新規作成
   6. 動作確認後に`crops`を`INSTALLED_APPS`から削除
   7. `crops`フォルダを削除
-- `accounts`が`crops`に依存している可能性があるため、削除前に依存関係を確認すること
+- `accounts`や`calendar_app`が`crops`に依存している可能性があるため、削除前に依存関係を確認すること
 
 ---
 
@@ -229,6 +230,8 @@ my_garden_proj/          ← VSCodeのルート、CLAUDE.mdはここ
 - グリッド座標のみマス単位（10cm=1マス）
 - cm→マス変換：`cm // 10`
 
+---
+
 ## データベース接続情報（ConoHa VPS上のPostgreSQL）
 
 SupabaseからConoHa VPS上のPostgreSQLに移行済み。
@@ -237,13 +240,13 @@ SupabaseからConoHa VPS上のPostgreSQLに移行済み。
 HOST: localhost
 PORT: 5432
 NAME: my_garden_db
-USER: yuki
+USER: garden_user
 PASSWORD: （.envで管理）
 ```
 
 `.env`の`DATABASE_URL`：
 ```
-DATABASE_URL=postgres://yuki:pass000@localhost:5432/my_garden_db
+DATABASE_URL=postgres://garden_user:password@localhost:5432/my_garden_db
 ```
 
 `settings.py`はすでに`.env`から読み込む設定にしてある。
@@ -251,3 +254,53 @@ DATABASE_URL=postgres://yuki:pass000@localhost:5432/my_garden_db
 
 ※ PostgreSQLは同じVPS上でlocalhostで動いているため、
 　ConoHaのセキュリティグループで5432番ポートを開ける必要はない。
+
+---
+
+## トップページ（garden/）の設計方針
+
+### ダッシュボード構成
+
+- `garden/`はダッシュボードとして機能する
+- 複数の`GardenArea`をタブで切り替えて俯瞰図を表示
+- タブ例：「南側の畑」「第1圃場」など
+
+### 日付セレクター
+
+- ページ上部に日付セレクター（DateSelector）を配置
+- 選択した日付の畑の状態を俯瞰図に反映する
+- **表示ルール**：開始日〜終了日の範囲内にあるものだけ表示する
+
+| モデル | 開始日 | 終了日 |
+|---|---|---|
+| `Bed` | `created_at` | `deleted_at`（nullなら現在も有効） |
+| `Crop` | `planted_at` | `harvested_at`（nullなら栽培中） |
+| `SoilStatusArea` | `start_date` | `end_date`（nullなら継続中） |
+
+### バックエンドのクエリ例
+
+```python
+def get_active_crops(area, target_date):
+    return Crop.objects.filter(
+        area=area,
+        planted_at__lte=target_date,
+    ).filter(
+        models.Q(harvested_at__isnull=True) |
+        models.Q(harvested_at__gte=target_date)
+    )
+
+def get_active_beds(area, target_date):
+    return Bed.objects.filter(
+        area=area,
+        created_at__lte=target_date,
+    ).filter(
+        models.Q(deleted_at__isnull=True) |
+        models.Q(deleted_at__gte=target_date)
+    )
+```
+
+### UIの動作
+
+1. 日付を変更 → APIに日付を渡す → 俯瞰図を再描画
+2. デフォルトは今日の日付
+3. 過去の日付を選ぶと「あの日の畑」が再現できる

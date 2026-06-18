@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}畑ダッシュボード{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dashboard { margin-top: 16px; }
+
+  /* 日付セレクター */
+  .date-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .date-bar input[type="date"] {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.95rem;
+  }
+  .date-bar button {
+    padding: 6px 12px;
+    background: #4a7c59;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .date-bar button:hover { background: #3a6347; }
+
+  /* エリアタブ */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    padding: 6px 14px;
+    border: 1px solid #ccc;
+    background: white;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  .tab-btn.active {
+    background: #4a7c59;
+    color: white;
+    border-color: #4a7c59;
+  }
+
+  /* キャンバスエリア */
+  .canvas-wrap {
+    overflow: auto;
+    border: 1px solid #ccc;
+    border-radius: 0 4px 4px 4px;
+    background: white;
+    padding: 8px;
+    display: inline-block;
+    max-width: 100%;
+  }
+  canvas { display: block; image-rendering: pixelated; }
+
+  /* 凡例 */
+  .legend {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+  }
+  .legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    border: 1px solid #aaa;
+  }
+
+  .empty { color: #888; margin-top: 24px; }
+  .btn-secondary { background: #888; margin-top: 16px; display: inline-block; }
+  .btn-secondary:hover { background: #666; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+  {% if areas %}
+    <div class="date-bar">
+      <label for="date-input">日付：</label>
+      <input type="date" id="date-input" value="{{ today }}">
+      <button id="today-btn">今日</button>
+    </div>
+
+    <div class="tabs" id="tabs">
+      {% for area in areas %}
+      <button class="tab-btn{% if forloop.first %} active{% endif %}"
+              data-area-id="{{ area.id }}">{{ area.name }}</button>
+      {% endfor %}
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="overview-canvas"></canvas>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+  {% else %}
+    <p class="empty">まだ畑エリアが登録されていません。</p>
+  {% endif %}
+
+  <a href="/admin/" class="btn btn-secondary">管理画面</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if areas %}
+<script>
+const CELL = Math.max(4, Math.min(16, Math.floor((window.innerWidth - 48) / 70)));
+const BED_COLOR = '#c9a96e';
+const SOIL_COLORS = {
+  'plowed':   '#a0785a',
+  'limed':    '#d4c9a8',
+  'manured':  '#7a5c3a',
+  'mulched':  '#2e2e2e',
+  'covered':  '#90b8d8',
+};
+
+let currentAreaId = {{ areas.0.id }};
+let currentDate = '{{ today }}';
+
+const canvas = document.getElementById('overview-canvas');
+const ctx = canvas.getContext('2d');
+const dateInput = document.getElementById('date-input');
+const legend = document.getElementById('legend');
+
+async function loadAndDraw(areaId, dateStr) {
+  const url = `/garden/api/area/${areaId}/state/?date=${dateStr}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  draw(data);
+}
+
+function draw(state) {
+  const { rows, cols } = state.area;
+  canvas.width  = cols * CELL;
+  canvas.height = rows * CELL;
+
+  // 背景（土）
+  ctx.fillStyle = '#e8d5a3';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // 畝
+  ctx.fillStyle = BED_COLOR;
+  for (const b of state.beds) {
+    ctx.fillRect(
+      b.col_start * CELL,
+      b.row_start * CELL,
+      (b.col_end - b.col_start + 1) * CELL,
+      (b.row_end - b.row_start + 1) * CELL
+    );
+  }
+
+  // 土壌状態
+  for (const s of state.soil_areas) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = SOIL_COLORS[s.status_type] || '#aaa';
+    ctx.fillRect(
+      s.col_start * CELL,
+      s.row_start * CELL,
+      (s.col_end - s.col_start + 1) * CELL,
+      (s.row_end - s.row_start + 1) * CELL
+    );
+    ctx.globalAlpha = 1.0;
+  }
+
+  // 作物
+  const cropColors = {};
+  for (const c of state.crops) {
+    ctx.fillStyle = c.color;
+    ctx.fillRect(
+      c.col_start * CELL,
+      c.row_start * CELL,
+      (c.col_end - c.col_start + 1) * CELL,
+      (c.row_end - c.row_start + 1) * CELL
+    );
+    cropColors[c.name] = c.color;
+  }
+
+  // 凡例更新
+  legend.innerHTML = '';
+  for (const [name, color] of Object.entries(cropColors)) {
+    legend.innerHTML += `
+      <div class="legend-item">
+        <div class="legend-color" style="background:${color}"></div>
+        <span>${name}</span>
+      </div>`;
+  }
+}
+
+// タブ切り替え
+document.getElementById('tabs').addEventListener('click', e => {
+  if (!e.target.matches('.tab-btn')) return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  currentAreaId = e.target.dataset.areaId;
+  loadAndDraw(currentAreaId, currentDate);
+});
+
+// 日付変更
+dateInput.addEventListener('change', e => {
+  currentDate = e.target.value;
+  loadAndDraw(currentAreaId, currentDate);
+});
+
+// 今日ボタン
+document.getElementById('today-btn').addEventListener('click', () => {
+  currentDate = '{{ today }}';
+  dateInput.value = currentDate;
+  loadAndDraw(currentAreaId, currentDate);
+});
+
+// 初期表示
+loadAndDraw(currentAreaId, currentDate);
+</script>
+{% endif %}
+{% endblock %}

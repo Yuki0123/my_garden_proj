@@ -57,6 +57,7 @@ class VegetableType(models.Model):
     )
     rotation_years = models.PositiveSmallIntegerField("連作回避年数", default=3)
     rotation_buffer_cm = models.PositiveSmallIntegerField("影響半径(cm)", default=50)
+    color = models.CharField("表示色(hex)", max_length=7, default="#4CAF50")
 
     def __str__(self):
         return self.name
