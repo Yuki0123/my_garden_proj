@@ -1,233 +1,1525 @@
 {% extends "base.html" %}
-
 {% block title %}畑ダッシュボード{% endblock %}
 
 {% block extra_css %}
 <style>
-  .dashboard { margin-top: 16px; }
+/* フルビューポートレイアウト */
+body { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
+       flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 
-  /* 日付セレクター */
-  .date-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-  .date-bar input[type="date"] {
-    padding: 6px 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 0.95rem;
-  }
-  .date-bar button {
-    padding: 6px 12px;
-    background: #4a7c59;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-  .date-bar button:hover { background: #3a6347; }
+:root {
+  --green: #4a7c59;
+  --green-light: #6a9c79;
+  --accent: #e07040;
+  --bg: #f5f0ea;
+  --white: #ffffff;
+  --text: #2a2018;
+  --text-soft: #7a6a58;
+  --bed: #c8a878;
+  --bed-alt: #b89868;
+  --path: #ddd0bc;
+  --border: #e0d8ce;
+}
 
-  /* エリアタブ */
-  .tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-  }
-  .tab-btn {
-    padding: 6px 14px;
-    border: 1px solid #ccc;
-    background: white;
-    border-radius: 4px 4px 0 0;
-    cursor: pointer;
-    font-size: 0.9rem;
-  }
-  .tab-btn.active {
-    background: #4a7c59;
-    color: white;
-    border-color: #4a7c59;
-  }
+/* サブヘッダー */
+.sub-header {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.area-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.area-tab {
+  padding: 4px 12px; border: 1px solid var(--border); border-radius: 4px;
+  background: var(--bg); cursor: pointer; font-size: 0.85rem; color: var(--text-soft);
+}
+.area-tab.active { background: var(--green); color: white; border-color: var(--green); }
 
-  /* キャンバスエリア */
-  .canvas-wrap {
-    overflow: auto;
-    border: 1px solid #ccc;
-    border-radius: 0 4px 4px 4px;
-    background: white;
-    padding: 8px;
-    display: inline-block;
-    max-width: 100%;
-  }
-  canvas { display: block; image-rendering: pixelated; }
+.date-bar { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+.date-bar input[type="date"] {
+  padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85rem;
+}
+.date-bar button {
+  padding: 4px 8px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: var(--text-soft);
+}
 
-  /* 凡例 */
-  .legend {
-    margin-top: 12px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.8rem;
-  }
-  .legend-color {
-    width: 14px;
-    height: 14px;
-    border-radius: 2px;
-    border: 1px solid #aaa;
-  }
+.view-toggle {
+  margin-left: auto; display: flex; background: var(--bg);
+  border-radius: 6px; padding: 2px; gap: 2px;
+}
+.toggle-btn {
+  padding: 4px 10px; border-radius: 4px; border: none; background: transparent;
+  font-size: 0.8rem; color: var(--text-soft); cursor: pointer;
+}
+.toggle-btn.active {
+  background: var(--white); color: var(--green); font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.toggle-btn:disabled { opacity: 0.4; cursor: default; }
 
-  .empty { color: #888; margin-top: 24px; }
-  .btn-secondary { background: #888; margin-top: 16px; display: inline-block; }
-  .btn-secondary:hover { background: #666; }
+/* ─── 俯瞰パネル ─── */
+#overviewPane {
+  flex: 1; overflow: auto; -webkit-overflow-scrolling: touch;
+  padding: 10px; background: var(--bg);
+}
+.field-overview {
+  display: inline-block; background: #e8ddd0;
+  border-radius: 6px; padding: 8px; border: 1px solid #d0c0a8;
+  position: relative;
+}
+.ov-icon-overlay {
+  position: absolute; pointer-events: none; z-index: 2;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.45));
+}
+.ov-row { display: flex; position: relative; }
+.ov-row.bed-row { cursor: pointer; transition: filter 0.1s; }
+.ov-row.bed-row:hover { filter: brightness(1.07); }
+.ov-row.bed-row.selected { outline: 2px solid var(--green); outline-offset: 1px; z-index: 1; }
+.ov-cell { width: var(--ov-cell, 4px); height: var(--ov-cell, 4px); flex-shrink: 0; background: var(--bed); }
+.ov-cell.alt    { background: var(--bed-alt); }
+.ov-cell.b2     { background: #b89060; }
+.ov-cell.b2.alt { background: #a88050; }
+.ov-cell.sel    { outline: 1px solid var(--green); }
+.bed-label {
+  position: absolute; left: 2px; top: 50%; transform: translateY(-50%);
+  font-size: 8px; color: rgba(60,40,20,0.6); pointer-events: none;
+  white-space: nowrap; font-weight: 600;
+}
+
+/* ─── 編集パネル ─── */
+#detailPane {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+.detail-header {
+  background: var(--white); border-bottom: 1px solid var(--border);
+  padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.back-btn {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 10px; font-size: 0.8rem; cursor: pointer; color: var(--text-soft);
+}
+.detail-title { font-size: 0.95rem; font-weight: 700; color: var(--green); }
+.detail-sub { font-size: 0.75rem; color: var(--text-soft); }
+
+.detail-grid-wrapper {
+  flex: 1; overflow: auto; -webkit-overflow-scrolling: touch;
+  padding: 8px; background: var(--bg);
+}
+.col-header { display: flex; }
+.col-hcell {
+  width: 36px; text-align: center; font-size: 8px;
+  color: var(--text-soft); flex-shrink: 0;
+}
+.detail-grid {
+  display: inline-block; background: #e0d0b8;
+  border-radius: 6px; padding: 4px;
+  position: relative;
+}
+.crop-icon-overlay {
+  position: absolute; z-index: 2;
+  object-fit: contain; cursor: pointer;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.35));
+  transition: transform 0.1s;
+}
+.crop-icon-overlay:active { transform: scale(0.92); }
+.popup-backdrop {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.popup-backdrop.hidden { display: none; }
+.popup-card {
+  background: #fff; border-radius: 16px 16px 0 0;
+  padding: 20px 20px 32px; width: 100%; max-width: 480px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.popup-crop-name {
+  font-weight: 700; font-size: 1.05rem; color: var(--green);
+  text-align: center; padding-bottom: 8px;
+}
+.popup-btn-delete {
+  padding: 13px; border: none; border-radius: 10px;
+  background: #e53e3e; color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer;
+}
+.popup-btn-cancel {
+  padding: 11px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg); color: var(--text-soft); font-size: 0.9rem; cursor: pointer;
+}
+.detail-row { display: flex; }
+.d-cell {
+  width: 36px; height: 36px;
+  border: 1px solid rgba(160,120,80,0.2);
+  cursor: pointer; background: var(--bed);
+  position: relative; user-select: none; -webkit-user-select: none;
+  transition: filter 0.1s;
+  display: flex; align-items: center; justify-content: center;
+}
+.d-cell:nth-child(even) { background: var(--bed-alt); }
+.d-cell.selected-start { background: rgba(74,124,89,0.65) !important; outline: 2px solid var(--green); z-index: 1; }
+.d-cell.in-range { background: rgba(74,124,89,0.3) !important; }
+.d-cell.selected-end { background: rgba(74,124,89,0.65) !important; outline: 2px solid var(--green); z-index: 1; }
+
+/* ─── ボトムパネル ─── */
+.bottom-panel {
+  background: var(--white); border-top: 1px solid var(--border);
+  padding: 10px 14px; flex-shrink: 0;
+}
+.steps { display: flex; gap: 5px; margin-bottom: 10px; align-items: center; }
+.step { display: flex; align-items: center; gap: 3px; font-size: 0.7rem; color: var(--text-soft); }
+.step-num {
+  width: 18px; height: 18px; border-radius: 50%; background: #e0d8ce;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: var(--text-soft);
+}
+.step.active .step-num { background: var(--green); color: white; }
+.step.done .step-num { background: var(--green-light); color: white; }
+.step-arrow { color: #c0b8ae; font-size: 10px; }
+
+/* 科タブ */
+.family-tabs {
+  display: flex; gap: 4px; overflow-x: auto;
+  scrollbar-width: none; margin-bottom: 6px; padding-bottom: 2px;
+}
+.family-tabs::-webkit-scrollbar { display: none; }
+.family-tab {
+  flex-shrink: 0; padding: 3px 10px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--bg); font-size: 0.72rem; cursor: pointer;
+  color: var(--text-soft); white-space: nowrap;
+}
+.family-tab.active { background: var(--green); color: white; border-color: var(--green); }
+
+/* 野菜ピッカー */
+.veggie-picker {
+  display: flex; gap: 6px; overflow-x: auto;
+  scrollbar-width: none; padding-bottom: 4px;
+}
+.veggie-picker::-webkit-scrollbar { display: none; }
+.veggie-item {
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 8px; border-radius: 8px; border: 2px solid var(--border);
+  background: var(--bg); cursor: pointer; transition: all 0.15s; min-width: 52px;
+}
+.veggie-item.selected { border-color: var(--green); background: #e8f0e0; }
+.veggie-icon-img { width: 28px; height: 28px; object-fit: contain; }
+.veggie-icon-dot { width: 28px; height: 28px; border-radius: 50%; }
+.veggie-name { font-size: 9px; color: var(--text-soft); text-align: center; line-height: 1.2; }
+.veggie-spacing { font-size: 8px; color: var(--green-light); font-weight: 600; }
+.veggie-method {
+  font-size: 7px; padding: 1px 4px; border-radius: 3px; background: var(--border);
+  color: var(--text-soft);
+}
+
+/* 操作UI */
+.tap-instruction {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; background: #edf5e8; border-radius: 8px;
+  border-left: 3px solid var(--green); font-size: 0.8rem; color: var(--green); font-weight: 500;
+}
+.range-info {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; background: var(--bg); border-radius: 6px;
+  margin-top: 6px; font-size: 0.75rem;
+}
+.range-info .rlabel { color: var(--text-soft); }
+.range-info .rvalue { font-weight: 600; color: var(--text); }
+#spacingWarn {
+  display: none; background: #fff3e0; border-left: 3px solid var(--accent);
+  border-radius: 6px; padding: 6px 10px;
+  font-size: 0.7rem; color: #a04010; margin-top: 6px; line-height: 1.6;
+}
+.btn-confirm {
+  width: 100%; padding: 12px; background: var(--green); color: white;
+  border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 700;
+  cursor: pointer; margin-top: 8px; transition: background 0.15s;
+}
+.btn-confirm:disabled { background: #c0b8ae; cursor: default; }
+.btn-reset {
+  width: 100%; padding: 8px; background: transparent; color: var(--text-soft);
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 0.8rem; cursor: pointer; margin-top: 4px;
+}
+
+/* 凡例 */
+.legend {
+  display: flex; gap: 10px; padding: 6px 12px;
+  background: var(--white); border-top: 1px solid var(--border);
+  font-size: 0.7rem; color: var(--text-soft); flex-shrink: 0; flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+/* トースト */
+.toast {
+  position: fixed; bottom: 80px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--text); color: white;
+  padding: 8px 18px; border-radius: 20px; font-size: 0.75rem;
+  opacity: 0; transition: all 0.3s; pointer-events: none;
+  white-space: nowrap; z-index: 300;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.hidden { display: none !important; }
+.empty-state {
+  padding: 40px; text-align: center; color: var(--text-soft);
+}
+.empty-state a { color: var(--green); }
+
+/* ─── 畝登録モーダル ─── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 200; padding: 0;
+}
+@media (min-width: 480px) {
+  .modal-overlay { align-items: center; padding: 16px; }
+}
+.modal {
+  background: var(--white); border-radius: 16px 16px 0 0; padding: 20px;
+  width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto;
+}
+@media (min-width: 480px) {
+  .modal { border-radius: 12px; }
+}
+.modal-title {
+  font-size: 1rem; font-weight: 700; color: var(--green);
+  margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;
+}
+.modal-close {
+  background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-soft);
+}
+.form-group { margin-bottom: 12px; }
+.form-group label {
+  display: block; font-size: 0.8rem; color: var(--text-soft); margin-bottom: 4px; font-weight: 600;
+}
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="date"] {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 0.9rem; color: var(--text);
+}
+.form-row { display: flex; gap: 10px; }
+.form-row .form-group { flex: 1; }
+.form-hint { font-size: 0.7rem; color: var(--text-soft); margin-top: 3px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+.btn-modal-primary {
+  flex: 1; padding: 10px; background: var(--green); color: white;
+  border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+}
+.btn-modal-secondary {
+  padding: 10px 16px; background: var(--bg); color: var(--text-soft);
+  border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.85rem; cursor: pointer;
+}
+.btn-bulk {
+  width: 100%; padding: 9px; margin-bottom: 14px;
+  background: #edf5e8; color: var(--green);
+  border: 1.5px solid var(--green-light); border-radius: 8px;
+  font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+.divider {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.75rem; color: var(--text-soft); margin-bottom: 14px;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.btn-add-bed {
+  padding: 4px 10px; background: var(--white);
+  border: 1.5px solid var(--green); border-radius: 4px;
+  color: var(--green); font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
+}
+.btn-edit-bed {
+  padding: 4px 10px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-soft); font-size: 0.8rem; cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* ─── 畝ビジュアルエディタ ─── */
+#bedEditPane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.bed-edit-header {
+  background: var(--white); border-bottom: 1px solid var(--border);
+  padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.bed-edit-name-input {
+  font-size: 0.95rem; font-weight: 700; color: var(--green);
+  border: none; background: transparent; outline: none; width: 100%;
+  border-bottom: 1px dashed var(--border);
+}
+.bed-edit-name-input:focus { border-bottom-color: var(--green); }
+
+.bed-edit-grid-wrapper {
+  flex: 1; overflow: auto; -webkit-overflow-scrolling: touch;
+  padding: 10px; background: var(--bg);
+}
+.bed-edit-grid {
+  display: inline-block; background: #e8ddd0;
+  border-radius: 6px; padding: 8px; border: 1px solid #d0c0a8;
+}
+.be-row { display: flex; }
+.be-cell {
+  width: 10px; height: 10px; flex-shrink: 0;
+  cursor: pointer; transition: filter 0.05s;
+}
+.be-cell:hover { filter: brightness(0.85); }
+.be-cell.be-path     { background: var(--path); }
+.be-cell.be-bed      { background: var(--bed); }
+.be-cell.be-cur      { background: var(--bed); outline: 1px solid rgba(74,124,89,0.5); }
+.be-cell.be-path.b2  { background: #cec0ac; }
+.be-cell.be-bed.b2   { background: #b89060; }
+.be-cell.be-cur.b2   { background: #b89060; outline: 1px solid rgba(74,124,89,0.5); }
+.be-cell.be-start { background: rgba(74,124,89,0.8) !important; outline: 2px solid var(--green); z-index: 1; position: relative; }
+.be-cell.be-range { background: rgba(74,124,89,0.35) !important; }
+.be-cell.be-end   { background: rgba(74,124,89,0.8) !important; outline: 2px solid var(--green); z-index: 1; position: relative; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dashboard">
-  {% if areas %}
-    <div class="date-bar">
-      <label for="date-input">日付：</label>
-      <input type="date" id="date-input" value="{{ today }}">
-      <button id="today-btn">今日</button>
-    </div>
+{% if areas %}
 
-    <div class="tabs" id="tabs">
-      {% for area in areas %}
-      <button class="tab-btn{% if forloop.first %} active{% endif %}"
-              data-area-id="{{ area.id }}">{{ area.name }}</button>
-      {% endfor %}
-    </div>
-
-    <div class="canvas-wrap">
-      <canvas id="overview-canvas"></canvas>
-    </div>
-
-    <div class="legend" id="legend"></div>
-
-  {% else %}
-    <p class="empty">まだ畑エリアが登録されていません。</p>
-  {% endif %}
-
-  <a href="/admin/" class="btn btn-secondary">管理画面</a>
+<!-- サブヘッダー -->
+<div class="sub-header">
+  <div class="area-tabs" id="areaTabs">
+    {% for area in areas %}
+    <button class="area-tab{% if forloop.first %} active{% endif %}"
+            data-area-id="{{ area.id }}">{{ area.name }}</button>
+    {% endfor %}
+  </div>
+  <div class="date-bar">
+    <label>日付:</label>
+    <input type="date" id="dateInput" value="{{ today }}">
+    <button id="todayBtn">今日</button>
+  </div>
+  <div class="view-toggle">
+    <button class="toggle-btn active" id="btnOverview">全体</button>
+    <button class="toggle-btn" id="btnDetail" disabled>編集</button>
+  </div>
+  <button class="btn-add-bed" id="btnAddBed">＋ 畝を追加</button>
 </div>
+
+<!-- 俯瞰パネル -->
+<div id="overviewPane">
+  <div class="field-overview" id="fieldOverview">
+    <div class="empty-state">読み込み中...</div>
+  </div>
+</div>
+
+<!-- 編集パネル -->
+<div id="detailPane" class="hidden">
+  <div class="detail-header">
+    <button class="back-btn" id="backBtn">← 全体</button>
+    <div style="flex:1">
+      <div class="detail-title" id="detailTitle"></div>
+      <div class="detail-sub" id="detailSub"></div>
+    </div>
+    <button class="btn-edit-bed" id="btnEditBed">✏️ 編集</button>
+  </div>
+  <div class="detail-grid-wrapper">
+    <div class="col-header" id="colHeader"></div>
+    <div class="detail-grid" id="detailGrid"></div>
+  </div>
+  <div class="bottom-panel">
+    <div class="steps">
+      <div class="step" id="s1"><div class="step-num">1</div><span>野菜</span></div>
+      <div class="step-arrow">›</div>
+      <div class="step" id="s2"><div class="step-num">2</div><span>始点</span></div>
+      <div class="step-arrow">›</div>
+      <div class="step" id="s3"><div class="step-num">3</div><span>終点</span></div>
+    </div>
+    <div id="stepUI1">
+      <div class="family-tabs" id="familyTabs"></div>
+      <div class="veggie-picker" id="veggiePicker"></div>
+    </div>
+    <div id="stepUI2" class="hidden">
+      <div class="tap-instruction"><span>👆</span><span>始点をタップ</span></div>
+      <button class="btn-reset" id="resetBtn1">← やり直す</button>
+    </div>
+    <div id="stepUI3" class="hidden">
+      <div class="tap-instruction"><span>👆</span><span>終点をタップ（1マスだけなら始点と同じセルを再タップ）</span></div>
+      <div class="range-info hidden" id="rangeInfo">
+        <span class="rlabel">選択範囲</span>
+        <span class="rvalue" id="rangeText">—</span>
+      </div>
+      <div id="spacingWarn"></div>
+      <button class="btn-confirm" id="confirmBtn" disabled>植え付ける</button>
+      <button class="btn-reset" id="resetBtn2">← 始点を変える</button>
+    </div>
+  </div>
+</div>
+
+<!-- 作物アクションポップアップ -->
+<div id="cropActionPopup" class="popup-backdrop hidden">
+  <div class="popup-card">
+    <div class="popup-crop-name" id="popupCropName"></div>
+    <button class="popup-btn-delete" id="popupDeleteBtn">この株を削除する</button>
+    <button class="popup-btn-cancel" id="popupCancelBtn">キャンセル</button>
+  </div>
+</div>
+
+<!-- 畝ビジュアルエディタ -->
+<div id="bedEditPane" class="hidden">
+  <div class="bed-edit-header">
+    <button class="back-btn" id="bedEditBack">← キャンセル</button>
+    <div style="flex:1">
+      <input type="text" id="bedEditName" class="bed-edit-name-input" placeholder="畝名">
+      <div class="detail-sub">左上→右下の順でタップして新しい範囲を指定</div>
+    </div>
+  </div>
+  <div class="bed-edit-grid-wrapper" id="bedEditGridWrapper">
+    <div class="bed-edit-grid" id="bedEditGrid"></div>
+  </div>
+  <div class="bottom-panel">
+    <div class="steps">
+      <div class="step" id="bes1"><div class="step-num">1</div><span>左上</span></div>
+      <div class="step-arrow">›</div>
+      <div class="step" id="bes2"><div class="step-num">2</div><span>右下</span></div>
+    </div>
+    <div id="beUI1">
+      <div class="tap-instruction"><span>👆</span><span>畝の左上（開始位置）をタップ</span></div>
+    </div>
+    <div id="beUI2" class="hidden">
+      <div class="tap-instruction"><span>👆</span><span>畝の右下（終了位置）をタップ</span></div>
+      <div class="range-info hidden" id="beRangeInfo">
+        <span class="rlabel">選択範囲</span>
+        <span class="rvalue" id="beRangeText">—</span>
+      </div>
+      <button class="btn-confirm" id="beConfirmBtn" disabled>この範囲で確定</button>
+      <button class="btn-reset" id="beResetBtn">← 左上を変える</button>
+    </div>
+  </div>
+</div>
+
+<!-- 畝登録モーダル -->
+<div class="modal-overlay hidden" id="bedModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="bedModalTitle">畝を登録</span>
+      <button class="modal-close" id="bedModalClose">✕</button>
+    </div>
+
+    <button class="btn-bulk" id="btnBulkBeds">
+      📐 標準15本を一括登録（80cm畝 × 40cm通路）
+    </button>
+    <div class="divider">または1本ずつ登録</div>
+
+    <div class="form-group">
+      <label>畝名</label>
+      <input type="text" id="bedName" placeholder="例: 畝1">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>上端 (cm)</label>
+        <input type="number" id="bedTop" min="0" step="10" value="0">
+        <div class="form-hint">上から何cmの位置か</div>
+      </div>
+      <div class="form-group">
+        <label>高さ (cm)</label>
+        <input type="number" id="bedHeight" min="10" step="10" value="80">
+        <div class="form-hint">畝の幅（縦方向）</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>左端 (cm)</label>
+        <input type="number" id="bedLeft" min="0" step="10" value="0">
+      </div>
+      <div class="form-group">
+        <label>幅 (cm)</label>
+        <input type="number" id="bedWidth" min="10" step="10" value="700">
+        <div class="form-hint">デフォルト=全幅7m</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>畝立て日</label>
+      <input type="date" id="bedDate" value="{{ today }}">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-modal-secondary" id="bedModalCancel">キャンセル</button>
+      <button class="btn-modal-primary" id="bedModalSubmit">登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 凡例 -->
+<div class="legend" id="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--bed)"></div>畝（空）</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--path)"></div>通路</div>
+  <span id="legendCrops"></span>
+  <div class="legend-item" style="margin-left:auto;color:var(--green);font-weight:600;">タップで編集 →</div>
+</div>
+
+{% else %}
+<div class="empty-state">
+  まだ畑エリアが登録されていません。<br>
+  <a href="/admin/garden/gardenarea/add/">管理画面で追加</a>
+</div>
+{% endif %}
+
+<div class="toast" id="toast"></div>
 {% endblock %}
 
 {% block extra_js %}
 {% if areas %}
 <script>
-const CELL = Math.max(4, Math.min(16, Math.floor((window.innerWidth - 48) / 70)));
-const BED_COLOR = '#c9a96e';
-const SOIL_COLORS = {
-  'plowed':   '#a0785a',
-  'limed':    '#d4c9a8',
-  'manured':  '#7a5c3a',
-  'mulched':  '#2e2e2e',
-  'covered':  '#90b8d8',
-};
+const CSRF = '{{ csrf_token }}';
+const API = '/garden/api';
 
+// 俯瞰セルサイズ：最小4px(スマホ)〜最大16px(PC)
+const CELL = Math.max(4, Math.min(16, Math.floor((window.innerWidth - 48) / 70)));
+document.documentElement.style.setProperty('--ov-cell', CELL + 'px');
+
+// ─── 状態 ───────────────────────────────────
+let areaState = null;
+let veggieTypes = [];
 let currentAreaId = {{ areas.0.id }};
 let currentDate = '{{ today }}';
+let selectedBed = null;
+let plantStep = 1;
+let selectedVeggie = null;
+let selectedFamily = '全て';
+let startCell = null;
+let endCell = null;
 
-const canvas = document.getElementById('overview-canvas');
-const ctx = canvas.getContext('2d');
-const dateInput = document.getElementById('date-input');
-const legend = document.getElementById('legend');
+// ─── API ─────────────────────────────────────
+async function loadState() {
+  const res = await fetch(`${API}/area/${currentAreaId}/state/?date=${currentDate}`);
+  areaState = await res.json();
+}
 
-async function loadAndDraw(areaId, dateStr) {
-  const url = `/garden/api/area/${areaId}/state/?date=${dateStr}`;
-  const res = await fetch(url);
+async function loadVeggieTypes() {
+  const res = await fetch(`${API}/vegetable-types/`);
   const data = await res.json();
-  draw(data);
+  veggieTypes = data.vegetable_types;
 }
 
-function draw(state) {
-  const { rows, cols } = state.area;
-  canvas.width  = cols * CELL;
-  canvas.height = rows * CELL;
+async function postCrop(payload) {
+  const res = await fetch(`${API}/crops/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
 
-  // 背景（土）
-  ctx.fillStyle = '#e8d5a3';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+// ─── 俯瞰 ────────────────────────────────────
+function buildOverview() {
+  const { area, beds, crops } = areaState;
 
-  // 畝
-  ctx.fillStyle = BED_COLOR;
-  for (const b of state.beds) {
-    ctx.fillRect(
-      b.col_start * CELL,
-      b.row_start * CELL,
-      (b.col_end - b.col_start + 1) * CELL,
-      (b.row_end - b.row_start + 1) * CELL
-    );
+  // セル単位の畝マップ（行単位ではなくセル単位で管理）
+  const cellBed = {};   // "r,c" → bed object
+  const rowHasBed = new Array(area.rows).fill(false);
+  for (const bed of beds) {
+    for (let r = bed.row_start; r <= bed.row_end; r++) {
+      rowHasBed[r] = true;
+      for (let c = bed.col_start; c <= bed.col_end; c++) {
+        cellBed[`${r},${c}`] = bed;
+      }
+    }
   }
 
-  // 土壌状態
-  for (const s of state.soil_areas) {
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = SOIL_COLORS[s.status_type] || '#aaa';
-    ctx.fillRect(
-      s.col_start * CELL,
-      s.row_start * CELL,
-      (s.col_end - s.col_start + 1) * CELL,
-      (s.row_end - s.row_start + 1) * CELL
-    );
-    ctx.globalAlpha = 1.0;
+  // 作物カラーマップ
+  const cropMap = {};
+  for (const crop of crops) {
+    for (let r = crop.row_start; r <= crop.row_end; r++) {
+      for (let c = crop.col_start; c <= crop.col_end; c++) {
+        cropMap[`${r},${c}`] = crop.color;
+      }
+    }
   }
 
-  // 作物
+  const container = document.getElementById('fieldOverview');
+  container.innerHTML = '';
+  const selectedBedId = selectedBed ? selectedBed.id : null;
+
+  for (let r = 0; r < area.rows; r++) {
+    const band = Math.floor(r / 30) % 2;
+    const pathBg = band ? '#cec0ac' : 'var(--path)';
+    const rowEl = document.createElement('div');
+    rowEl.className = 'ov-row';
+
+    if (!rowHasBed[r]) {
+      // 完全な通路行
+      rowEl.style.cssText =
+        `height:${CELL}px;width:${area.cols * CELL}px;background:${pathBg}`;
+    } else {
+      // 畝を含む行：セルごとに判定
+      rowEl.classList.add('bed-row');
+
+      // この行で畝が始まるラベルをすべて追加
+      for (const bed of beds) {
+        if (bed.row_start === r) {
+          const lbl = document.createElement('div');
+          lbl.className = 'bed-label';
+          lbl.textContent = bed.name;
+          lbl.style.left = `${bed.col_start * CELL + 2}px`;
+          rowEl.appendChild(lbl);
+        }
+      }
+
+      for (let c = 0; c < area.cols; c++) {
+        const cell = document.createElement('div');
+        const bed      = cellBed[`${r},${c}`];
+        const cropColor = cropMap[`${r},${c}`];
+
+        if (cropColor) {
+          cell.className = 'ov-cell';
+          cell.style.background = cropColor;
+        } else if (bed) {
+          cell.className = 'ov-cell' +
+            (c % 2 === 1 ? ' alt' : '') +
+            (band ? ' b2' : '') +
+            (bed.id === selectedBedId ? ' sel' : '');
+        } else {
+          // 畝のない列（左右の通路、畝と畝の間）
+          cell.className = 'ov-cell';
+          cell.style.background = pathBg;
+        }
+
+        rowEl.appendChild(cell);
+      }
+
+      // クリック：押された列から畝を特定（イベント委譲）
+      rowEl.addEventListener('click', e => {
+        const rect = rowEl.getBoundingClientRect();
+        const c = Math.floor((e.clientX - rect.left) / CELL);
+        const bed = cellBed[`${r},${c}`];
+        if (bed) openBed(bed);
+      });
+    }
+
+    container.appendChild(rowEl);
+  }
+
+  // 俯瞰アイコンオーバーレイ
+  const OV_PAD   = 8;
+  const iconSize = Math.max(22, Math.min(CELL * 6, 44));
+  const minDist  = Math.max(30, CELL * 7);   // 個体植えの近接フィルター距離
+  const minStep  = Math.ceil(minDist / CELL); // エリア作物の最小ステップ（マス）
+
+  const placeOvIcon = (cx, cy) => {
+    const img = document.createElement('img');
+    img.className = 'ov-icon-overlay';
+    img.style.width  = `${iconSize}px`;
+    img.style.height = `${iconSize}px`;
+    img.style.top    = `${cy - iconSize / 2}px`;
+    img.style.left   = `${cx - iconSize / 2}px`;
+    return img;
+  };
+
+  const placed = []; // 個体植えの近接チェック用
+  for (const crop of crops) {
+    if (!crop.icon_url) continue;
+
+    if (crop.planting_method === 'individual') {
+      // 1点レコード：同タイプが近すぎるものは間引く
+      const cx = OV_PAD + (crop.col_start + 0.5) * CELL;
+      const cy = OV_PAD + (crop.row_start + 0.5) * CELL;
+      const tooClose = placed.some(p =>
+        p.vtId === crop.vegetable_type_id &&
+        Math.hypot(p.cx - cx, p.cy - cy) < minDist
+      );
+      if (tooClose) continue;
+      placed.push({ cx, cy, vtId: crop.vegetable_type_id });
+      const img = placeOvIcon(cx, cy);
+      img.src = crop.icon_url;
+      img.alt = crop.name;
+      container.appendChild(img);
+    } else {
+      // 筋蒔き・まとめ植え：株間ステップでアイコンを複数配置
+      const spacingGrid = Math.max(1, Math.floor(crop.spacing_cm / 10));
+      const step = Math.max(spacingGrid, minStep);
+      const half = Math.floor(step / 2);
+      for (let r = crop.row_start + half; r <= crop.row_end; r += step) {
+        for (let c = crop.col_start + half; c <= crop.col_end; c += step) {
+          const cx = OV_PAD + (c + 0.5) * CELL;
+          const cy = OV_PAD + (r + 0.5) * CELL;
+          const img = placeOvIcon(cx, cy);
+          img.src = crop.icon_url;
+          img.alt = crop.name;
+          container.appendChild(img);
+        }
+      }
+    }
+  }
+
+  // 凡例の作物更新
   const cropColors = {};
-  for (const c of state.crops) {
-    ctx.fillStyle = c.color;
-    ctx.fillRect(
-      c.col_start * CELL,
-      c.row_start * CELL,
-      (c.col_end - c.col_start + 1) * CELL,
-      (c.row_end - c.row_start + 1) * CELL
-    );
-    cropColors[c.name] = c.color;
+  for (const crop of crops) cropColors[crop.name] = crop.color;
+  const legendCrops = document.getElementById('legendCrops');
+  legendCrops.innerHTML = Object.entries(cropColors).map(([name, color]) =>
+    `<span class="legend-item"><span class="legend-dot" style="background:${color}"></span>${name}</span>`
+  ).join('');
+}
+
+function showOverview() {
+  document.getElementById('overviewPane').classList.remove('hidden');
+  document.getElementById('detailPane').classList.add('hidden');
+  document.getElementById('legend').classList.remove('hidden');
+  document.getElementById('btnOverview').classList.add('active');
+  document.getElementById('btnDetail').classList.remove('active');
+}
+
+// ─── 編集 ────────────────────────────────────
+function openBed(bed) {
+  selectedBed = bed;
+  document.getElementById('overviewPane').classList.add('hidden');
+  document.getElementById('detailPane').classList.remove('hidden');
+  document.getElementById('legend').classList.add('hidden');
+  document.getElementById('btnOverview').classList.remove('active');
+  document.getElementById('btnDetail').classList.add('active');
+  document.getElementById('btnDetail').disabled = false;
+
+  const rows = bed.row_end - bed.row_start + 1;
+  const cols = bed.col_end - bed.col_start + 1;
+  document.getElementById('detailTitle').textContent = bed.name;
+  document.getElementById('detailSub').textContent =
+    `${rows * 10}cm × ${cols * 10}cm`;
+
+  buildDetailGrid();
+  resetPlant();
+}
+
+const DETAIL_CELL = 36;
+const DETAIL_PAD  = 4; // .detail-grid の padding と合わせる
+
+function buildDetailGrid() {
+  if (!selectedBed || !areaState) return;
+  const bed = selectedBed;
+  const { crops } = areaState;
+  const rows = bed.row_end - bed.row_start + 1;
+  const cols = bed.col_end - bed.col_start + 1;
+
+  const cropMap      = {};
+  const iconOverlays = [];
+
+  for (const crop of crops) {
+    const rMin = Math.max(crop.row_start, bed.row_start);
+    const rMax = Math.min(crop.row_end,   bed.row_end);
+    const cMin = Math.max(crop.col_start, bed.col_start);
+    const cMax = Math.min(crop.col_end,   bed.col_end);
+    if (rMin > rMax || cMin > cMax) continue;
+
+    const spacingGrid = Math.max(1, Math.floor(crop.spacing_cm / 10));
+    const half        = Math.floor(spacingGrid / 2);
+
+    for (let r = rMin; r <= rMax; r++) {
+      for (let c = cMin; c <= cMax; c++) {
+        const lr = r - bed.row_start;
+        const lc = c - bed.col_start;
+        cropMap[`${lr},${lc}`] = { color: crop.color, name: crop.name };
+
+        const localR = r - crop.row_start;
+        const localC = c - crop.col_start;
+        const isPoint = crop.planting_method === 'individual';
+        const atIconPos = isPoint ||
+          (localR % spacingGrid === half && localC % spacingGrid === half);
+        if (crop.icon_url && atIconPos) {
+          iconOverlays.push({
+            lr, lc, spacingGrid,
+            cropId: crop.id, name: crop.name,
+            plantingMethod: crop.planting_method,
+            iconUrl: crop.icon_url,
+          });
+        }
+      }
+    }
   }
 
-  // 凡例更新
-  legend.innerHTML = '';
-  for (const [name, color] of Object.entries(cropColors)) {
-    legend.innerHTML += `
-      <div class="legend-item">
-        <div class="legend-color" style="background:${color}"></div>
-        <span>${name}</span>
-      </div>`;
+  // 列ヘッダー（10マス=1mごとに表示）
+  const colHeader = document.getElementById('colHeader');
+  colHeader.innerHTML = '';
+  for (let lc = 0; lc < cols; lc++) {
+    const h = document.createElement('div');
+    h.className = 'col-hcell';
+    const globalC = bed.col_start + lc;
+    h.textContent = globalC % 10 === 0 ? `${globalC / 10}m` : '';
+    colHeader.appendChild(h);
+  }
+
+  // グリッドセル
+  const grid = document.getElementById('detailGrid');
+  grid.innerHTML = '';
+  for (let lr = 0; lr < rows; lr++) {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'detail-row';
+    for (let lc = 0; lc < cols; lc++) {
+      const cell = document.createElement('div');
+      cell.className = 'd-cell';
+      cell.dataset.lr = lr;
+      cell.dataset.lc = lc;
+      const cropInfo = cropMap[`${lr},${lc}`];
+      if (cropInfo) {
+        cell.style.background = cropInfo.color;
+        cell.title = cropInfo.name;
+      }
+      cell.addEventListener('click', onDetailCellClick);
+      rowEl.appendChild(cell);
+    }
+    grid.appendChild(rowEl);
+  }
+
+  // アイコンオーバーレイ（株間サイズに比例した大きさで中央配置）
+  for (const ov of iconOverlays) {
+    const iconSize = Math.max(32, Math.min(Math.round(ov.spacingGrid * DETAIL_CELL * 0.82), 150));
+    const img = document.createElement('img');
+    img.src = ov.iconUrl;
+    img.alt = ov.name;
+    img.className = 'crop-icon-overlay';
+    img.style.width  = `${iconSize}px`;
+    img.style.height = `${iconSize}px`;
+    img.style.top  = `${DETAIL_PAD + (ov.lr + 0.5) * DETAIL_CELL - iconSize / 2}px`;
+    img.style.left = `${DETAIL_PAD + (ov.lc + 0.5) * DETAIL_CELL - iconSize / 2}px`;
+    img.addEventListener('click', e => {
+      e.stopPropagation();
+      showCropPopup(ov.cropId, ov.name, ov.plantingMethod);
+    });
+    grid.appendChild(img);
   }
 }
 
-// タブ切り替え
-document.getElementById('tabs').addEventListener('click', e => {
-  if (!e.target.matches('.tab-btn')) return;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+function getDetailCell(lr, lc) {
+  return document.querySelector(`.d-cell[data-lr="${lr}"][data-lc="${lc}"]`);
+}
+
+// ─── 植え付けフロー ───────────────────────────
+const METHOD_LABEL = { individual: '1株', row: '筋蒔', block: 'まとめ' };
+
+function buildFamilyTabs() {
+  const families = ['全て', ...[...new Set(veggieTypes.map(v => v.family))].sort()];
+  const tabs = document.getElementById('familyTabs');
+  tabs.innerHTML = '';
+  for (const f of families) {
+    const tab = document.createElement('button');
+    tab.className = 'family-tab' + (f === selectedFamily ? ' active' : '');
+    tab.textContent = f;
+    tab.addEventListener('click', () => {
+      selectedFamily = f;
+      buildFamilyTabs();
+      buildVeggiePicker();
+    });
+    tabs.appendChild(tab);
+  }
+}
+
+function buildVeggiePicker() {
+  const picker = document.getElementById('veggiePicker');
+  picker.innerHTML = '';
+  const filtered = selectedFamily === '全て'
+    ? veggieTypes
+    : veggieTypes.filter(v => v.family === selectedFamily);
+  for (const v of filtered) {
+    const item = document.createElement('div');
+    item.className = 'veggie-item';
+    item.dataset.id = v.id;
+    const iconHtml = v.icon_url
+      ? `<img src="${v.icon_url}" class="veggie-icon-img" alt="${v.name}">`
+      : `<div class="veggie-icon-dot" style="background:${v.color}"></div>`;
+    item.innerHTML = `
+      ${iconHtml}
+      <span class="veggie-name">${v.name}</span>
+      <span class="veggie-spacing">${v.spacing_cm}cm</span>
+      <span class="veggie-method">${METHOD_LABEL[v.planting_method] || ''}</span>`;
+    item.addEventListener('click', () => selectVeggie(v));
+    picker.appendChild(item);
+  }
+}
+
+function selectVeggie(v) {
+  selectedVeggie = v;
+  document.querySelectorAll('.veggie-item').forEach(el =>
+    el.classList.toggle('selected', el.dataset.id == v.id));
+  goStep(2);
+}
+
+function goStep(n) {
+  plantStep = n;
+  document.getElementById('stepUI1').classList.toggle('hidden', n !== 1);
+  document.getElementById('stepUI2').classList.toggle('hidden', n !== 2);
+  document.getElementById('stepUI3').classList.toggle('hidden', n !== 3);
+  ['s1', 's2', 's3'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('active', 'done');
+    if (i + 1 === n) el.classList.add('active');
+    else if (i + 1 < n) el.classList.add('done');
+  });
+  if (n !== 3) {
+    document.getElementById('rangeInfo').classList.add('hidden');
+    document.getElementById('spacingWarn').style.display = 'none';
+    document.getElementById('confirmBtn').disabled = true;
+  }
+  if (n === 1) clearDetailHighlight();
+}
+
+function resetPlant() {
+  selectedVeggie = null;
+  startCell = null;
+  endCell = null;
+  document.querySelectorAll('.veggie-item').forEach(el => el.classList.remove('selected'));
+  goStep(1);
+}
+
+function onDetailCellClick(e) {
+  const cell = e.currentTarget;
+  const lr = parseInt(cell.dataset.lr);
+  const lc = parseInt(cell.dataset.lc);
+
+  if (plantStep === 2) {
+    startCell = { lr, lc };
+    endCell = null;
+    clearDetailHighlight();
+    cell.classList.add('selected-start');
+    goStep(3);
+  } else if (plantStep === 3) {
+    endCell = { lr, lc };
+    highlightRange();
+    updateRangeInfo();
+    document.getElementById('confirmBtn').disabled = false;
+  }
+}
+
+function clearDetailHighlight() {
+  document.querySelectorAll('.d-cell').forEach(el =>
+    el.classList.remove('selected-start', 'in-range', 'selected-end'));
+}
+
+function highlightRange() {
+  clearDetailHighlight();
+  if (!startCell || !endCell) return;
+  const minLr = Math.min(startCell.lr, endCell.lr);
+  const maxLr = Math.max(startCell.lr, endCell.lr);
+  const minLc = Math.min(startCell.lc, endCell.lc);
+  const maxLc = Math.max(startCell.lc, endCell.lc);
+  for (let lr = minLr; lr <= maxLr; lr++) {
+    for (let lc = minLc; lc <= maxLc; lc++) {
+      const cell = getDetailCell(lr, lc);
+      if (!cell) continue;
+      if (lr === startCell.lr && lc === startCell.lc) cell.classList.add('selected-start');
+      else if (lr === endCell.lr && lc === endCell.lc) cell.classList.add('selected-end');
+      else cell.classList.add('in-range');
+    }
+  }
+}
+
+function calcIndividualCount(rangeSize, spacingGrid) {
+  const half = Math.floor(spacingGrid / 2);
+  let count = 0;
+  for (let i = half; i < rangeSize; i += spacingGrid) count++;
+  return count;
+}
+
+function updateRangeInfo() {
+  if (!startCell || !endCell || !selectedVeggie) return;
+  const rows = Math.abs(endCell.lr - startCell.lr) + 1;
+  const cols = Math.abs(endCell.lc - startCell.lc) + 1;
+
+  let rangeLabel = `${rows * 10}cm × ${cols * 10}cm`;
+  const warnings = [];
+
+  if (selectedVeggie.planting_method === 'individual') {
+    const spacingGrid = Math.max(1, Math.floor(selectedVeggie.spacing_cm / 10));
+    const rCount = calcIndividualCount(rows, spacingGrid);
+    const cCount = calcIndividualCount(cols, spacingGrid);
+    const total  = rCount * cCount;
+    if (total === 0) {
+      warnings.push(`範囲が狭すぎます（株間 ${selectedVeggie.spacing_cm}cm より広く選んでください）`);
+    } else {
+      rangeLabel += ` → ${total}株`;
+    }
+  } else {
+    if (cols * 10 < selectedVeggie.spacing_cm) {
+      warnings.push(`幅 ${cols * 10}cm（推奨 ${selectedVeggie.spacing_cm}cm以上）`);
+    }
+  }
+
+  document.getElementById('rangeText').textContent = rangeLabel;
+  document.getElementById('rangeInfo').classList.remove('hidden');
+
+  const warnEl = document.getElementById('spacingWarn');
+  const btn = document.getElementById('confirmBtn');
+  if (warnings.length > 0) {
+    warnEl.innerHTML = warnings.map(w => `⚠️ ${w}`).join('<br>');
+    warnEl.style.display = 'block';
+    btn.style.background = 'var(--accent)';
+    btn.textContent = '⚠️ このまま植え付ける';
+  } else {
+    warnEl.style.display = 'none';
+    btn.style.background = 'var(--green)';
+    btn.textContent = '✓ 植え付ける';
+  }
+}
+
+async function confirmPlant() {
+  if (!selectedVeggie || !startCell || !endCell || !selectedBed) return;
+  const minLr = Math.min(startCell.lr, endCell.lr);
+  const maxLr = Math.max(startCell.lr, endCell.lr);
+  const minLc = Math.min(startCell.lc, endCell.lc);
+  const maxLc = Math.max(startCell.lc, endCell.lc);
+
+  const payload = {
+    area_id: currentAreaId,
+    vegetable_type_id: selectedVeggie.id,
+    row_start: selectedBed.row_start + minLr,
+    col_start: selectedBed.col_start + minLc,
+    row_end: selectedBed.row_start + maxLr,
+    col_end: selectedBed.col_start + maxLc,
+    planted_at: currentDate,
+  };
+
+  document.getElementById('confirmBtn').disabled = true;
+  const result = await postCrop(payload);
+  if (result.ok) {
+    const countLabel = result.crop_count > 1 ? `${result.crop_count}株` : '';
+    showToast(`${selectedVeggie.name}${countLabel ? ' ' + countLabel : ''}を植え付けました`);
+    await loadState();
+    buildOverview();
+    buildDetailGrid();
+    resetPlant();
+  } else {
+    showToast('エラー: ' + (result.error || '不明なエラー'));
+    document.getElementById('confirmBtn').disabled = false;
+  }
+}
+
+// ─── 作物削除ポップアップ ──────────────────────
+let popupCropId = null;
+
+function showCropPopup(cropId, name, plantingMethod) {
+  popupCropId = cropId;
+  const label = plantingMethod === 'individual' ? name : `${name}（エリア全体）`;
+  document.getElementById('popupCropName').textContent = label;
+  document.getElementById('cropActionPopup').classList.remove('hidden');
+}
+
+function hideCropPopup() {
+  popupCropId = null;
+  document.getElementById('cropActionPopup').classList.add('hidden');
+}
+
+async function deleteCrop() {
+  if (!popupCropId) return;
+  const cropId = popupCropId;
+  hideCropPopup();
+  const res = await fetch(`${API}/crops/${cropId}/`, {
+    method: 'DELETE',
+    headers: { 'X-CSRFToken': CSRF },
+  });
+  const result = await res.json();
+  if (result.ok) {
+    showToast('削除しました');
+    await loadState();
+    buildOverview();
+    buildDetailGrid();
+  } else {
+    showToast('削除エラー: ' + (result.error || ''));
+  }
+}
+
+document.getElementById('popupDeleteBtn').addEventListener('click', deleteCrop);
+document.getElementById('popupCancelBtn').addEventListener('click', hideCropPopup);
+document.getElementById('cropActionPopup').addEventListener('click', e => {
+  if (e.target === e.currentTarget) hideCropPopup();
+});
+
+// ─── ユーティリティ ───────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── イベント ────────────────────────────────
+document.getElementById('areaTabs').addEventListener('click', e => {
+  if (!e.target.matches('.area-tab')) return;
+  document.querySelectorAll('.area-tab').forEach(b => b.classList.remove('active'));
   e.target.classList.add('active');
   currentAreaId = e.target.dataset.areaId;
-  loadAndDraw(currentAreaId, currentDate);
+  selectedBed = null;
+  document.getElementById('btnDetail').disabled = true;
+  loadState().then(() => { buildOverview(); showOverview(); });
 });
 
-// 日付変更
-dateInput.addEventListener('change', e => {
+document.getElementById('dateInput').addEventListener('change', e => {
   currentDate = e.target.value;
-  loadAndDraw(currentAreaId, currentDate);
+  loadState().then(() => {
+    buildOverview();
+    if (selectedBed) buildDetailGrid();
+  });
 });
 
-// 今日ボタン
-document.getElementById('today-btn').addEventListener('click', () => {
+document.getElementById('todayBtn').addEventListener('click', () => {
   currentDate = '{{ today }}';
-  dateInput.value = currentDate;
-  loadAndDraw(currentAreaId, currentDate);
+  document.getElementById('dateInput').value = currentDate;
+  loadState().then(() => {
+    buildOverview();
+    if (selectedBed) buildDetailGrid();
+  });
 });
 
-// 初期表示
-loadAndDraw(currentAreaId, currentDate);
+document.getElementById('backBtn').addEventListener('click', () => {
+  buildOverview(); // 選択ハイライト付きで再描画
+  showOverview();
+});
+document.getElementById('btnOverview').addEventListener('click', () => {
+  buildOverview();
+  showOverview();
+});
+document.getElementById('btnDetail').addEventListener('click', () => {
+  if (selectedBed) openBed(selectedBed);
+});
+
+document.getElementById('resetBtn1').addEventListener('click', resetPlant);
+document.getElementById('resetBtn2').addEventListener('click', () => goStep(2));
+document.getElementById('confirmBtn').addEventListener('click', confirmPlant);
+
+// ─── 畝ビジュアルエディタ ────────────────────
+let beStartCell = null;
+let beEndCell   = null;
+let bedEditCells = [];   // 2Dキャッシュ [r][c] → DOM要素
+
+function openBedEditMode() {
+  if (!selectedBed) return;
+  document.getElementById('detailPane').classList.add('hidden');
+  document.getElementById('bedEditPane').classList.remove('hidden');
+  document.getElementById('legend').classList.add('hidden');
+  document.getElementById('bedEditName').value = selectedBed.name;
+
+  // 現在の畝の範囲をあらかじめ選択状態にする
+  beStartCell = { r: selectedBed.row_start, c: selectedBed.col_start };
+  beEndCell   = { r: selectedBed.row_end,   c: selectedBed.col_end };
+
+  buildBedEditGrid();
+  highlightBedEditRange();
+
+  // ステップ2（右下指定）から開始、確定ボタンも有効化
+  goBedEditStep(2);
+  const rows = selectedBed.row_end - selectedBed.row_start + 1;
+  const cols = selectedBed.col_end - selectedBed.col_start + 1;
+  document.getElementById('beRangeText').textContent = `${rows * 10}cm × ${cols * 10}cm`;
+  document.getElementById('beRangeInfo').classList.remove('hidden');
+  document.getElementById('beConfirmBtn').disabled = false;
+
+  // サブタイトルを状況に合わせて変更
+  document.querySelector('#bedEditPane .detail-sub').textContent =
+    '右下をタップしてサイズ調整 / 左上を変えるで全指定';
+
+  setTimeout(() => {
+    const wrapper = document.getElementById('bedEditGridWrapper');
+    wrapper.scrollTop = Math.max(0, selectedBed.row_start * 10 - 80);
+  }, 30);
+}
+
+function closeBedEditMode() {
+  document.getElementById('bedEditPane').classList.add('hidden');
+  document.getElementById('detailPane').classList.remove('hidden');
+  document.getElementById('legend').classList.add('hidden');
+}
+
+function buildBedEditGrid() {
+  const { area, beds, crops } = areaState;
+
+  // 畝マップ
+  const bedMap = Array.from({length: area.rows}, () => new Array(area.cols).fill(null));
+  for (const bed of beds) {
+    const label = bed.id === selectedBed.id ? 'cur' : 'other';
+    for (let r = bed.row_start; r <= bed.row_end; r++)
+      for (let c = bed.col_start; c <= bed.col_end; c++)
+        bedMap[r][c] = label;
+  }
+
+  // 作物カラーマップ
+  const cropMap = {};
+  for (const crop of crops) {
+    for (let r = crop.row_start; r <= crop.row_end; r++)
+      for (let c = crop.col_start; c <= crop.col_end; c++)
+        cropMap[`${r},${c}`] = crop.color;
+  }
+
+  const grid = document.getElementById('bedEditGrid');
+  grid.innerHTML = '';
+  bedEditCells = [];
+
+  for (let r = 0; r < area.rows; r++) {
+    bedEditCells[r] = [];
+    const rowEl = document.createElement('div');
+    rowEl.className = 'be-row';
+    for (let c = 0; c < area.cols; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'be-cell';
+      const band  = Math.floor(r / 30) % 2;
+      const color = cropMap[`${r},${c}`];
+      const btype = bedMap[r][c];
+      if (color)          cell.style.background = color;
+      else if (btype === 'cur')   cell.classList.add('be-cur');
+      else if (btype === 'other') cell.classList.add('be-bed');
+      else                        cell.classList.add('be-path');
+      if (band && !color) cell.classList.add('b2');
+      cell.addEventListener('click', () => onBedEditClick(r, c));
+      bedEditCells[r][c] = cell;
+      rowEl.appendChild(cell);
+    }
+    grid.appendChild(rowEl);
+  }
+}
+
+function goBedEditStep(n) {
+  document.getElementById('beUI1').classList.toggle('hidden', n !== 1);
+  document.getElementById('beUI2').classList.toggle('hidden', n !== 2);
+  ['bes1', 'bes2'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('active', 'done');
+    if (i + 1 === n) el.classList.add('active');
+    else if (i + 1 < n) el.classList.add('done');
+  });
+  if (n !== 2) {
+    document.getElementById('beRangeInfo').classList.add('hidden');
+    document.getElementById('beConfirmBtn').disabled = true;
+  }
+}
+
+function clearBedEditHighlight() {
+  if (!beStartCell) return;
+  const { area } = areaState;
+  const r0 = beStartCell ? beStartCell.r : 0;
+  const r1 = beEndCell   ? beEndCell.r   : r0;
+  const c0 = beStartCell ? beStartCell.c : 0;
+  const c1 = beEndCell   ? beEndCell.c   : c0;
+  const minR = Math.min(r0, r1), maxR = Math.max(r0, r1);
+  const minC = Math.min(c0, c1), maxC = Math.max(c0, c1);
+  for (let r = minR; r <= maxR; r++)
+    for (let c = minC; c <= maxC; c++)
+      bedEditCells[r]?.[c]?.classList.remove('be-start', 'be-range', 'be-end');
+}
+
+function highlightBedEditRange() {
+  if (!beStartCell || !beEndCell) return;
+  const minR = Math.min(beStartCell.r, beEndCell.r), maxR = Math.max(beStartCell.r, beEndCell.r);
+  const minC = Math.min(beStartCell.c, beEndCell.c), maxC = Math.max(beStartCell.c, beEndCell.c);
+  for (let r = minR; r <= maxR; r++) {
+    for (let c = minC; c <= maxC; c++) {
+      const cell = bedEditCells[r]?.[c];
+      if (!cell) continue;
+      cell.classList.remove('be-start', 'be-range', 'be-end');
+      if (r === beStartCell.r && c === beStartCell.c) cell.classList.add('be-start');
+      else if (r === beEndCell.r && c === beEndCell.c) cell.classList.add('be-end');
+      else cell.classList.add('be-range');
+    }
+  }
+}
+
+function onBedEditClick(r, c) {
+  if (!beStartCell) {
+    // ステップ1: 左上タップ
+    beStartCell = { r, c };
+    bedEditCells[r]?.[c]?.classList.add('be-start');
+    goBedEditStep(2);
+  } else {
+    // ステップ2: 右下タップ
+    clearBedEditHighlight();
+    beEndCell = { r, c };
+    highlightBedEditRange();
+    const rows = Math.abs(beEndCell.r - beStartCell.r) + 1;
+    const cols = Math.abs(beEndCell.c - beStartCell.c) + 1;
+    document.getElementById('beRangeText').textContent =
+      `${rows * 10}cm × ${cols * 10}cm`;
+    document.getElementById('beRangeInfo').classList.remove('hidden');
+    document.getElementById('beConfirmBtn').disabled = false;
+  }
+}
+
+async function confirmBedEdit() {
+  if (!beStartCell || !beEndCell) return;
+  const name = document.getElementById('bedEditName').value.trim() || selectedBed.name;
+  const row_start = Math.min(beStartCell.r, beEndCell.r);
+  const col_start = Math.min(beStartCell.c, beEndCell.c);
+  const row_end   = Math.max(beStartCell.r, beEndCell.r);
+  const col_end   = Math.max(beStartCell.c, beEndCell.c);
+
+  document.getElementById('beConfirmBtn').disabled = true;
+  const res = await fetch(`${API}/beds/${selectedBed.id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({ name, row_start, col_start, row_end, col_end }),
+  });
+  const result = await res.json();
+
+  if (result.ok) {
+    showToast(`「${name}」を更新しました`);
+    await loadState();
+    selectedBed = areaState.beds.find(b => b.id === selectedBed.id) || null;
+    buildOverview();
+    closeBedEditMode();
+    if (selectedBed) buildDetailGrid();
+  } else {
+    alert('エラー: ' + (result.error || '不明なエラー'));
+    document.getElementById('beConfirmBtn').disabled = false;
+  }
+}
+
+document.getElementById('bedEditBack').addEventListener('click', closeBedEditMode);
+document.getElementById('beConfirmBtn').addEventListener('click', confirmBedEdit);
+document.getElementById('beResetBtn').addEventListener('click', () => {
+  clearBedEditHighlight();
+  beStartCell = null;
+  beEndCell   = null;
+  document.querySelector('#bedEditPane .detail-sub').textContent =
+    '左上→右下の順でタップして新しい範囲を指定';
+  goBedEditStep(1);
+});
+
+// ─── 畝登録・編集 ────────────────────────────
+let editBedId = null;  // null=新規登録, number=編集中の畝ID
+
+function openBedModal(bed = null) {
+  editBedId = bed ? bed.id : null;
+  const isEdit = editBedId !== null;
+
+  document.getElementById('bedModalTitle').textContent = isEdit ? '畝を編集' : '畝を登録';
+  document.getElementById('bedModalSubmit').textContent = isEdit ? '変更を保存' : '登録する';
+  document.getElementById('btnBulkBeds').classList.toggle('hidden', isEdit);
+  document.querySelector('.divider').classList.toggle('hidden', isEdit);
+
+  if (isEdit) {
+    // 既存値をcmに変換してフォームに入れる
+    document.getElementById('bedName').value   = bed.name;
+    document.getElementById('bedTop').value    = bed.row_start * 10;
+    document.getElementById('bedHeight').value = (bed.row_end - bed.row_start + 1) * 10;
+    document.getElementById('bedLeft').value   = bed.col_start * 10;
+    document.getElementById('bedWidth').value  = (bed.col_end - bed.col_start + 1) * 10;
+  } else {
+    document.getElementById('bedName').value   = '';
+    document.getElementById('bedTop').value    = 0;
+    document.getElementById('bedHeight').value = 80;
+    document.getElementById('bedLeft').value   = 0;
+    document.getElementById('bedWidth').value  = areaState ? areaState.area.cols * 10 : 700;
+  }
+  document.getElementById('bedDate').value = currentDate;
+  document.getElementById('bedModal').classList.remove('hidden');
+}
+
+function closeBedModal() {
+  document.getElementById('bedModal').classList.add('hidden');
+  editBedId = null;
+}
+
+async function submitBed() {
+  const name = document.getElementById('bedName').value.trim();
+  if (!name) { alert('畝名を入力してください'); return; }
+
+  const topCm    = parseInt(document.getElementById('bedTop').value)    || 0;
+  const heightCm = parseInt(document.getElementById('bedHeight').value) || 80;
+  const leftCm   = parseInt(document.getElementById('bedLeft').value)   || 0;
+  const widthCm  = parseInt(document.getElementById('bedWidth').value)  || 700;
+  const createdAt = document.getElementById('bedDate').value || currentDate;
+
+  const row_start = topCm / 10;
+  const row_end   = row_start + heightCm / 10 - 1;
+  const col_start = leftCm / 10;
+  const col_end   = col_start + widthCm / 10 - 1;
+
+  const maxRows = areaState ? areaState.area.rows - 1 : 179;
+  const maxCols = areaState ? areaState.area.cols - 1 : 69;
+  if (row_end > maxRows) { alert(`上端+高さがエリアの範囲（${(maxRows+1)*10}cm）を超えています`); return; }
+  if (col_end > maxCols) { alert(`左端+幅がエリアの範囲（${(maxCols+1)*10}cm）を超えています`); return; }
+
+  const payload = { name, row_start, col_start, row_end, col_end, created_at: createdAt };
+  const isEdit  = editBedId !== null;
+  const url     = isEdit ? `${API}/beds/${editBedId}/` : `${API}/beds/`;
+  const method  = isEdit ? 'PATCH' : 'POST';
+  if (!isEdit) payload.area_id = currentAreaId;
+
+  document.getElementById('bedModalSubmit').disabled = true;
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify(payload),
+  });
+  const result = await res.json();
+  document.getElementById('bedModalSubmit').disabled = false;
+
+  if (result.ok) {
+    showToast(isEdit ? `「${name}」を更新しました` : `「${name}」を登録しました`);
+    closeBedModal();
+    await loadState();
+    // 編集中の畝を更新して詳細グリッドを再描画
+    if (isEdit && selectedBed) {
+      selectedBed = areaState.beds.find(b => b.id === editBedId) || selectedBed;
+      buildDetailGrid();
+    }
+    buildOverview();
+  } else {
+    alert('エラー: ' + (result.error || '不明なエラー'));
+  }
+}
+
+async function createStandardBeds() {
+  if (!areaState) return;
+  const existingCount = areaState.beds.length;
+  if (existingCount > 0) {
+    if (!confirm(`すでに${existingCount}本の畝が登録されています。15本追加してよいですか？`)) return;
+  }
+
+  const cols = areaState.area.cols;
+  const BED_ROWS = 8;   // 80cm
+  const PATH_ROWS = 4;  // 40cm
+  const N_BEDS = 15;
+  const createdAt = document.getElementById('bedDate').value || currentDate;
+
+  let ok = 0;
+  for (let i = 0; i < N_BEDS; i++) {
+    const row_start = i * (BED_ROWS + PATH_ROWS);
+    const row_end   = row_start + BED_ROWS - 1;
+    const res = await fetch(`${API}/beds/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({
+        area_id: currentAreaId,
+        name: `畝${i + 1}`,
+        row_start, col_start: 0,
+        row_end, col_end: cols - 1,
+        created_at: createdAt,
+      }),
+    });
+    const result = await res.json();
+    if (result.ok) ok++;
+  }
+
+  showToast(`${ok}本の畝を登録しました`);
+  closeBedModal();
+  await loadState();
+  buildOverview();
+}
+
+document.getElementById('btnAddBed').addEventListener('click', () => openBedModal());
+document.getElementById('btnEditBed').addEventListener('click', () => {
+  if (selectedBed) openBedEditMode();
+});
+document.getElementById('bedModalClose').addEventListener('click', closeBedModal);
+document.getElementById('bedModalCancel').addEventListener('click', closeBedModal);
+document.getElementById('bedModalSubmit').addEventListener('click', submitBed);
+document.getElementById('btnBulkBeds').addEventListener('click', createStandardBeds);
+document.getElementById('bedModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('bedModal')) closeBedModal();
+});
+
+// ─── 初期化 ──────────────────────────────────
+async function init() {
+  await Promise.all([loadState(), loadVeggieTypes()]);
+  buildOverview();
+  buildFamilyTabs();
+  buildVeggiePicker();
+}
+init();
 </script>
 {% endif %}
 {% endblock %}

@@ -34,8 +34,9 @@ class VegetableType(models.Model):
     """野菜の種類マスター"""
 
     PLANTING_METHOD_CHOICES = [
-        ("individual", "個体植え"),
-        ("dense", "密集・筋蒔き"),
+        ("individual", "1株ずつ"),
+        ("row", "筋蒔き"),
+        ("block", "まとめ植え"),
     ]
 
     name = models.CharField("野菜名", max_length=100, unique=True)
@@ -46,7 +47,7 @@ class VegetableType(models.Model):
         "アイコン画像",
         null=True,
         blank=True,
-        upload_to="icons/",
+        upload_to="vegetables/icons/",
         help_text="SVG形式推奨",
     )
     spacing_cm = models.PositiveSmallIntegerField(
