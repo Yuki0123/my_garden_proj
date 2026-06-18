@@ -148,6 +148,16 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
   padding: 13px; border: none; border-radius: 10px;
   background: #e53e3e; color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer;
 }
+.bed-add-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; background: var(--green); color: #fff;
+  font-size: 0.85rem; font-weight: 600; flex-shrink: 0;
+}
+.bed-add-banner.hidden { display: none; }
+.bed-name-input {
+  padding: 10px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 1rem; width: 100%; box-sizing: border-box;
+}
 .popup-btn-cancel {
   padding: 11px; border: 1px solid var(--border); border-radius: 10px;
   background: var(--bg); color: var(--text-soft); font-size: 0.9rem; cursor: pointer;
@@ -247,14 +257,6 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
   font-size: 0.8rem; cursor: pointer; margin-top: 4px;
 }
 
-/* 凡例 */
-.legend {
-  display: flex; gap: 10px; padding: 6px 12px;
-  background: var(--white); border-top: 1px solid var(--border);
-  font-size: 0.7rem; color: var(--text-soft); flex-shrink: 0; flex-wrap: wrap;
-}
-.legend-item { display: flex; align-items: center; gap: 4px; }
-.legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
 
 /* トースト */
 .toast {
@@ -408,6 +410,10 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
 
 <!-- 俯瞰パネル -->
 <div id="overviewPane">
+  <div id="bedAddBanner" class="bed-add-banner hidden">
+    <span id="bedAddMsg">始点をタップしてください</span>
+    <button id="bedAddCancelBtn" class="btn-reset" style="margin-left:auto">キャンセル</button>
+  </div>
   <div class="field-overview" id="fieldOverview">
     <div class="empty-state">読み込み中...</div>
   </div>
@@ -498,65 +504,37 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
   </div>
 </div>
 
-<!-- 畝登録モーダル -->
+<!-- 畝一括登録モーダル -->
 <div class="modal-overlay hidden" id="bedModal">
   <div class="modal">
     <div class="modal-title">
-      <span id="bedModalTitle">畝を登録</span>
+      <span>畝を一括登録</span>
       <button class="modal-close" id="bedModalClose">✕</button>
     </div>
-
     <button class="btn-bulk" id="btnBulkBeds">
       📐 標準15本を一括登録（80cm畝 × 40cm通路）
     </button>
-    <div class="divider">または1本ずつ登録</div>
-
-    <div class="form-group">
-      <label>畝名</label>
-      <input type="text" id="bedName" placeholder="例: 畝1">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>上端 (cm)</label>
-        <input type="number" id="bedTop" min="0" step="10" value="0">
-        <div class="form-hint">上から何cmの位置か</div>
-      </div>
-      <div class="form-group">
-        <label>高さ (cm)</label>
-        <input type="number" id="bedHeight" min="10" step="10" value="80">
-        <div class="form-hint">畝の幅（縦方向）</div>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>左端 (cm)</label>
-        <input type="number" id="bedLeft" min="0" step="10" value="0">
-      </div>
-      <div class="form-group">
-        <label>幅 (cm)</label>
-        <input type="number" id="bedWidth" min="10" step="10" value="700">
-        <div class="form-hint">デフォルト=全幅7m</div>
-      </div>
-    </div>
-    <div class="form-group">
+    <div class="form-group" style="margin-top:12px">
       <label>畝立て日</label>
       <input type="date" id="bedDate" value="{{ today }}">
     </div>
-
     <div class="modal-actions">
       <button class="btn-modal-secondary" id="bedModalCancel">キャンセル</button>
-      <button class="btn-modal-primary" id="bedModalSubmit">登録する</button>
     </div>
   </div>
 </div>
 
-<!-- 凡例 -->
-<div class="legend" id="legend">
-  <div class="legend-item"><div class="legend-dot" style="background:var(--bed)"></div>畝（空）</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--path)"></div>通路</div>
-  <span id="legendCrops"></span>
-  <div class="legend-item" style="margin-left:auto;color:var(--green);font-weight:600;">タップで編集 →</div>
+<!-- 畝追加：名前入力ポップアップ -->
+<div id="bedNamePopup" class="popup-backdrop hidden">
+  <div class="popup-card">
+    <div class="popup-crop-name">畝名を入力</div>
+    <div id="bedTapRangeLabel" style="font-size:0.8rem;color:var(--text-soft);text-align:center;margin-bottom:4px"></div>
+    <input type="text" id="bedNameInput" class="bed-name-input" placeholder="例: 畝1">
+    <button class="popup-btn-delete" id="bedNameSubmitBtn" style="background:var(--green)">登録する</button>
+    <button class="popup-btn-cancel" id="bedNameCancelBtn">キャンセル</button>
+  </div>
 </div>
+
 
 {% else %}
 <div class="empty-state">
@@ -575,7 +553,8 @@ const CSRF = '{{ csrf_token }}';
 const API = '/garden/api';
 
 // 俯瞰セルサイズ：最小4px(スマホ)〜最大16px(PC)
-const CELL = Math.max(4, Math.min(16, Math.floor((window.innerWidth - 48) / 70)));
+const CELL   = Math.max(4, Math.min(16, Math.floor((window.innerWidth - 48) / 70)));
+const OV_PAD = 8; // .field-overview の padding
 document.documentElement.style.setProperty('--ov-cell', CELL + 'px');
 
 // ─── 状態 ───────────────────────────────────
@@ -627,16 +606,6 @@ function buildOverview() {
     }
   }
 
-  // 作物カラーマップ
-  const cropMap = {};
-  for (const crop of crops) {
-    for (let r = crop.row_start; r <= crop.row_end; r++) {
-      for (let c = crop.col_start; c <= crop.col_end; c++) {
-        cropMap[`${r},${c}`] = crop.color;
-      }
-    }
-  }
-
   const container = document.getElementById('fieldOverview');
   container.innerHTML = '';
   const selectedBedId = selectedBed ? selectedBed.id : null;
@@ -668,19 +637,14 @@ function buildOverview() {
 
       for (let c = 0; c < area.cols; c++) {
         const cell = document.createElement('div');
-        const bed      = cellBed[`${r},${c}`];
-        const cropColor = cropMap[`${r},${c}`];
+        const bed = cellBed[`${r},${c}`];
 
-        if (cropColor) {
-          cell.className = 'ov-cell';
-          cell.style.background = cropColor;
-        } else if (bed) {
+        if (bed) {
           cell.className = 'ov-cell' +
             (c % 2 === 1 ? ' alt' : '') +
             (band ? ' b2' : '') +
             (bed.id === selectedBedId ? ' sel' : '');
         } else {
-          // 畝のない列（左右の通路、畝と畝の間）
           cell.className = 'ov-cell';
           cell.style.background = pathBg;
         }
@@ -701,7 +665,6 @@ function buildOverview() {
   }
 
   // 俯瞰アイコンオーバーレイ
-  const OV_PAD   = 8;
   const iconSize = Math.max(22, Math.min(CELL * 6, 44));
   const minDist  = Math.max(30, CELL * 7);   // 個体植えの近接フィルター距離
   const minStep  = Math.ceil(minDist / CELL); // エリア作物の最小ステップ（マス）
@@ -745,19 +708,11 @@ function buildOverview() {
     }
   }
 
-  // 凡例の作物更新
-  const cropColors = {};
-  for (const crop of crops) cropColors[crop.name] = crop.color;
-  const legendCrops = document.getElementById('legendCrops');
-  legendCrops.innerHTML = Object.entries(cropColors).map(([name, color]) =>
-    `<span class="legend-item"><span class="legend-dot" style="background:${color}"></span>${name}</span>`
-  ).join('');
 }
 
 function showOverview() {
   document.getElementById('overviewPane').classList.remove('hidden');
   document.getElementById('detailPane').classList.add('hidden');
-  document.getElementById('legend').classList.remove('hidden');
   document.getElementById('btnOverview').classList.add('active');
   document.getElementById('btnDetail').classList.remove('active');
 }
@@ -767,7 +722,6 @@ function openBed(bed) {
   selectedBed = bed;
   document.getElementById('overviewPane').classList.add('hidden');
   document.getElementById('detailPane').classList.remove('hidden');
-  document.getElementById('legend').classList.add('hidden');
   document.getElementById('btnOverview').classList.remove('active');
   document.getElementById('btnDetail').classList.add('active');
   document.getElementById('btnDetail').disabled = false;
@@ -852,7 +806,6 @@ function buildDetailGrid() {
       cell.dataset.lc = lc;
       const cropInfo = cropMap[`${lr},${lc}`];
       if (cropInfo) {
-        cell.style.background = cropInfo.color;
         cell.title = cropInfo.name;
       }
       cell.addEventListener('click', onDetailCellClick);
@@ -1184,7 +1137,6 @@ function openBedEditMode() {
   if (!selectedBed) return;
   document.getElementById('detailPane').classList.add('hidden');
   document.getElementById('bedEditPane').classList.remove('hidden');
-  document.getElementById('legend').classList.add('hidden');
   document.getElementById('bedEditName').value = selectedBed.name;
 
   // 現在の畝の範囲をあらかじめ選択状態にする
@@ -1215,7 +1167,6 @@ function openBedEditMode() {
 function closeBedEditMode() {
   document.getElementById('bedEditPane').classList.add('hidden');
   document.getElementById('detailPane').classList.remove('hidden');
-  document.getElementById('legend').classList.add('hidden');
 }
 
 function buildBedEditGrid() {
@@ -1370,89 +1321,133 @@ document.getElementById('beResetBtn').addEventListener('click', () => {
   goBedEditStep(1);
 });
 
-// ─── 畝登録・編集 ────────────────────────────
-let editBedId = null;  // null=新規登録, number=編集中の畝ID
+// ─── 畝追加（タップ方式） ────────────────────
+let bedAddMode  = false;
+let bedAddStart = null; // {r, c} グローバル座標
+let bedAddEnd   = null;
 
-function openBedModal(bed = null) {
-  editBedId = bed ? bed.id : null;
-  const isEdit = editBedId !== null;
+function enterBedAddMode() {
+  bedAddMode  = true;
+  bedAddStart = null;
+  bedAddEnd   = null;
+  document.getElementById('bedAddBanner').classList.remove('hidden');
+  document.getElementById('bedAddMsg').textContent = '始点をタップしてください';
+  showOverview();
+}
 
-  document.getElementById('bedModalTitle').textContent = isEdit ? '畝を編集' : '畝を登録';
-  document.getElementById('bedModalSubmit').textContent = isEdit ? '変更を保存' : '登録する';
-  document.getElementById('btnBulkBeds').classList.toggle('hidden', isEdit);
-  document.querySelector('.divider').classList.toggle('hidden', isEdit);
+function exitBedAddMode() {
+  bedAddMode  = false;
+  bedAddStart = null;
+  bedAddEnd   = null;
+  document.getElementById('bedAddBanner').classList.add('hidden');
+  document.getElementById('bedAddOverlay')?.remove();
+}
 
-  if (isEdit) {
-    // 既存値をcmに変換してフォームに入れる
-    document.getElementById('bedName').value   = bed.name;
-    document.getElementById('bedTop').value    = bed.row_start * 10;
-    document.getElementById('bedHeight').value = (bed.row_end - bed.row_start + 1) * 10;
-    document.getElementById('bedLeft').value   = bed.col_start * 10;
-    document.getElementById('bedWidth').value  = (bed.col_end - bed.col_start + 1) * 10;
+function drawBedAddOverlay() {
+  document.getElementById('bedAddOverlay')?.remove();
+  if (!bedAddStart) return;
+  const endR = bedAddEnd ? bedAddEnd.r : bedAddStart.r;
+  const endC = bedAddEnd ? bedAddEnd.c : bedAddStart.c;
+  const minR = Math.min(bedAddStart.r, endR);
+  const maxR = Math.max(bedAddStart.r, endR);
+  const minC = Math.min(bedAddStart.c, endC);
+  const maxC = Math.max(bedAddStart.c, endC);
+  const ov = document.createElement('div');
+  ov.id = 'bedAddOverlay';
+  ov.style.cssText = [
+    'position:absolute', 'pointer-events:none', 'z-index:5',
+    `top:${OV_PAD + minR * CELL}px`,
+    `left:${OV_PAD + minC * CELL}px`,
+    `width:${(maxC - minC + 1) * CELL}px`,
+    `height:${(maxR - minR + 1) * CELL}px`,
+    'background:rgba(74,124,89,0.35)',
+    'border:2px solid var(--green)',
+    'border-radius:2px',
+  ].join(';');
+  document.getElementById('fieldOverview').appendChild(ov);
+}
+
+function showBedNamePopup() {
+  const minR = Math.min(bedAddStart.r, bedAddEnd.r);
+  const maxR = Math.max(bedAddStart.r, bedAddEnd.r);
+  const minC = Math.min(bedAddStart.c, bedAddEnd.c);
+  const maxC = Math.max(bedAddStart.c, bedAddEnd.c);
+  document.getElementById('bedTapRangeLabel').textContent =
+    `${(maxR - minR + 1) * 10}cm × ${(maxC - minC + 1) * 10}cm`;
+  const nextNum = (areaState?.beds.length ?? 0) + 1;
+  document.getElementById('bedNameInput').value = `畝${nextNum}`;
+  document.getElementById('bedNamePopup').classList.remove('hidden');
+  setTimeout(() => document.getElementById('bedNameInput').select(), 50);
+}
+
+async function submitBedFromTap() {
+  const name = document.getElementById('bedNameInput').value.trim();
+  if (!name) { document.getElementById('bedNameInput').focus(); return; }
+  const minR = Math.min(bedAddStart.r, bedAddEnd.r);
+  const maxR = Math.max(bedAddStart.r, bedAddEnd.r);
+  const minC = Math.min(bedAddStart.c, bedAddEnd.c);
+  const maxC = Math.max(bedAddStart.c, bedAddEnd.c);
+  document.getElementById('bedNameSubmitBtn').disabled = true;
+  const res = await fetch(`${API}/beds/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({
+      area_id: currentAreaId, name,
+      row_start: minR, col_start: minC,
+      row_end: maxR,   col_end: maxC,
+      created_at: currentDate,
+    }),
+  });
+  const result = await res.json();
+  document.getElementById('bedNameSubmitBtn').disabled = false;
+  if (result.ok) {
+    document.getElementById('bedNamePopup').classList.add('hidden');
+    showToast(`「${name}」を登録しました`);
+    exitBedAddMode();
+    await loadState();
+    buildOverview();
   } else {
-    document.getElementById('bedName').value   = '';
-    document.getElementById('bedTop').value    = 0;
-    document.getElementById('bedHeight').value = 80;
-    document.getElementById('bedLeft').value   = 0;
-    document.getElementById('bedWidth').value  = areaState ? areaState.area.cols * 10 : 700;
+    showToast('エラー: ' + (result.error || ''));
   }
+}
+
+document.getElementById('fieldOverview').addEventListener('click', e => {
+  if (!bedAddMode) return;
+  e.stopPropagation();
+  const rect = document.getElementById('fieldOverview').getBoundingClientRect();
+  const r = Math.min(areaState.area.rows - 1,
+    Math.max(0, Math.floor((e.clientY - rect.top - OV_PAD) / CELL)));
+  const c = Math.min(areaState.area.cols - 1,
+    Math.max(0, Math.floor((e.clientX - rect.left - OV_PAD) / CELL)));
+  if (!bedAddStart) {
+    bedAddStart = { r, c };
+    document.getElementById('bedAddMsg').textContent = '終点をタップしてください';
+    drawBedAddOverlay();
+  } else {
+    bedAddEnd = { r, c };
+    drawBedAddOverlay();
+    showBedNamePopup();
+  }
+});
+
+document.getElementById('bedAddCancelBtn').addEventListener('click', exitBedAddMode);
+document.getElementById('bedNameSubmitBtn').addEventListener('click', submitBedFromTap);
+document.getElementById('bedNameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitBedFromTap();
+});
+document.getElementById('bedNameCancelBtn').addEventListener('click', () => {
+  document.getElementById('bedNamePopup').classList.add('hidden');
+  exitBedAddMode();
+});
+
+// ─── 畝一括登録 ──────────────────────────────
+function openBedModal() {
   document.getElementById('bedDate').value = currentDate;
   document.getElementById('bedModal').classList.remove('hidden');
 }
 
 function closeBedModal() {
   document.getElementById('bedModal').classList.add('hidden');
-  editBedId = null;
-}
-
-async function submitBed() {
-  const name = document.getElementById('bedName').value.trim();
-  if (!name) { alert('畝名を入力してください'); return; }
-
-  const topCm    = parseInt(document.getElementById('bedTop').value)    || 0;
-  const heightCm = parseInt(document.getElementById('bedHeight').value) || 80;
-  const leftCm   = parseInt(document.getElementById('bedLeft').value)   || 0;
-  const widthCm  = parseInt(document.getElementById('bedWidth').value)  || 700;
-  const createdAt = document.getElementById('bedDate').value || currentDate;
-
-  const row_start = topCm / 10;
-  const row_end   = row_start + heightCm / 10 - 1;
-  const col_start = leftCm / 10;
-  const col_end   = col_start + widthCm / 10 - 1;
-
-  const maxRows = areaState ? areaState.area.rows - 1 : 179;
-  const maxCols = areaState ? areaState.area.cols - 1 : 69;
-  if (row_end > maxRows) { alert(`上端+高さがエリアの範囲（${(maxRows+1)*10}cm）を超えています`); return; }
-  if (col_end > maxCols) { alert(`左端+幅がエリアの範囲（${(maxCols+1)*10}cm）を超えています`); return; }
-
-  const payload = { name, row_start, col_start, row_end, col_end, created_at: createdAt };
-  const isEdit  = editBedId !== null;
-  const url     = isEdit ? `${API}/beds/${editBedId}/` : `${API}/beds/`;
-  const method  = isEdit ? 'PATCH' : 'POST';
-  if (!isEdit) payload.area_id = currentAreaId;
-
-  document.getElementById('bedModalSubmit').disabled = true;
-  const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-    body: JSON.stringify(payload),
-  });
-  const result = await res.json();
-  document.getElementById('bedModalSubmit').disabled = false;
-
-  if (result.ok) {
-    showToast(isEdit ? `「${name}」を更新しました` : `「${name}」を登録しました`);
-    closeBedModal();
-    await loadState();
-    // 編集中の畝を更新して詳細グリッドを再描画
-    if (isEdit && selectedBed) {
-      selectedBed = areaState.beds.find(b => b.id === editBedId) || selectedBed;
-      buildDetailGrid();
-    }
-    buildOverview();
-  } else {
-    alert('エラー: ' + (result.error || '不明なエラー'));
-  }
 }
 
 async function createStandardBeds() {
@@ -1493,13 +1488,12 @@ async function createStandardBeds() {
   buildOverview();
 }
 
-document.getElementById('btnAddBed').addEventListener('click', () => openBedModal());
+document.getElementById('btnAddBed').addEventListener('click', enterBedAddMode);
 document.getElementById('btnEditBed').addEventListener('click', () => {
   if (selectedBed) openBedEditMode();
 });
 document.getElementById('bedModalClose').addEventListener('click', closeBedModal);
 document.getElementById('bedModalCancel').addEventListener('click', closeBedModal);
-document.getElementById('bedModalSubmit').addEventListener('click', submitBed);
 document.getElementById('btnBulkBeds').addEventListener('click', createStandardBeds);
 document.getElementById('bedModal').addEventListener('click', e => {
   if (e.target === document.getElementById('bedModal')) closeBedModal();
