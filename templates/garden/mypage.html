@@ -732,7 +732,8 @@ function buildOverview() {
   }
 
   // 俯瞰アイコンオーバーレイ
-  const iconSize = Math.max(44, Math.min(CELL * 12, 88));
+  const ovIconScale = window.innerWidth < 768 ? 2 / 3 : 1;
+  const iconSize = Math.round(Math.max(44, Math.min(CELL * 12, 88)) * ovIconScale);
   const minDist  = Math.max(30, CELL * 7);   // 個体植えの近接フィルター距離
   const minStep  = Math.ceil(minDist / CELL); // エリア作物の最小ステップ（マス）
 
