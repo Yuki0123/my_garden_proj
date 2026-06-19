@@ -11,5 +11,5 @@ urlpatterns = [
     path("api/beds/", views.create_bed_api, name="create_bed_api"),
     path("api/beds/<int:bed_id>/", views.update_bed_api, name="update_bed_api"),
     path("api/crops/", views.plant_crop_api, name="plant_crop_api"),
-    path("api/crops/<int:crop_id>/", views.delete_crop_api, name="delete_crop_api"),
+    path("api/crops/<int:crop_id>/", views.crop_detail_api, name="crop_detail_api"),
 ]

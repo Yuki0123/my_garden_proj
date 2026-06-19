@@ -73,6 +73,9 @@ def area_state_api(request, area_id):
                 "spacing_cm": c.vegetable_type.spacing_cm,
                 "planting_method": c.vegetable_type.planting_method,
                 "icon_url": request.build_absolute_uri(c.vegetable_type.icon.url) if c.vegetable_type.icon else None,
+                "planted_at": str(c.planted_at),
+                "harvested_at": str(c.harvested_at) if c.harvested_at else None,
+                "status": c.status,
                 "row_start": c.row_start,
                 "col_start": c.col_start,
                 "row_end": c.row_end,
@@ -126,6 +129,8 @@ def update_bed_api(request, bed_id):
         bed.col_end   = int(data.get("col_end",   bed.col_end))
         if "created_at" in data:
             bed.created_at = data["created_at"]
+        if "deleted_at" in data:
+            bed.deleted_at = data["deleted_at"] or None
         bed.save()
         return JsonResponse({"ok": True})
     except (KeyError, ValueError) as e:
@@ -153,11 +158,24 @@ def create_bed_api(request):
 
 
 @login_required
-@require_http_methods(["DELETE"])
-def delete_crop_api(request, crop_id):
+@require_http_methods(["PATCH", "DELETE"])
+def crop_detail_api(request, crop_id):
     crop = get_object_or_404(Crop, id=crop_id, area__owner=request.user)
-    crop.delete()
-    return JsonResponse({"ok": True})
+    if request.method == "DELETE":
+        crop.delete()
+        return JsonResponse({"ok": True})
+    try:
+        data = json.loads(request.body)
+        if "planted_at" in data:
+            crop.planted_at = date.fromisoformat(data["planted_at"])
+        if "harvested_at" in data:
+            crop.harvested_at = date.fromisoformat(data["harvested_at"]) if data["harvested_at"] else None
+        if "status" in data:
+            crop.status = data["status"]
+        crop.save()
+        return JsonResponse({"ok": True})
+    except (KeyError, ValueError) as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=400)
 
 
 @login_required

@@ -142,8 +142,31 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
 }
 .popup-crop-name {
   font-weight: 700; font-size: 1.05rem; color: var(--green);
-  text-align: center; padding-bottom: 8px;
+  text-align: center; padding-bottom: 2px;
 }
+.popup-crop-meta {
+  font-size: 0.78rem; color: var(--text-soft); text-align: center; margin-bottom: 6px;
+}
+.popup-section {
+  border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.popup-section-label { font-size: 0.78rem; font-weight: 600; color: var(--text-soft); }
+.popup-scope-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.78rem; color: var(--text-soft); cursor: pointer; font-weight: normal;
+}
+.popup-row { display: flex; gap: 8px; align-items: center; }
+.popup-date-input {
+  flex: 1; padding: 7px 8px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 0.9rem;
+}
+.popup-btn-small {
+  padding: 7px 14px; border: none; border-radius: 6px;
+  background: var(--green); color: #fff;
+  font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.popup-btn-orange { background: #e67e22; }
 .popup-btn-delete {
   padding: 13px; border: none; border-radius: 10px;
   background: #e53e3e; color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer;
@@ -179,7 +202,7 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
 /* ─── ボトムパネル ─── */
 .bottom-panel {
   background: var(--white); border-top: 1px solid var(--border);
-  padding: 10px 14px; flex-shrink: 0;
+  padding: 10px 14px; flex-shrink: 0; min-width: 0; overflow: hidden;
 }
 .steps { display: flex; gap: 5px; margin-bottom: 10px; align-items: center; }
 .step { display: flex; align-items: center; gap: 3px; font-size: 0.7rem; color: var(--text-soft); }
@@ -194,10 +217,8 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
 
 /* 科タブ */
 .family-tabs {
-  display: flex; gap: 4px; overflow-x: auto;
-  scrollbar-width: none; margin-bottom: 6px; padding-bottom: 2px;
+  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;
 }
-.family-tabs::-webkit-scrollbar { display: none; }
 .family-tab {
   flex-shrink: 0; padding: 3px 10px;
   border: 1px solid var(--border); border-radius: 12px;
@@ -208,10 +229,13 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
 
 /* 野菜ピッカー */
 .veggie-picker {
-  display: flex; gap: 6px; overflow-x: auto;
-  scrollbar-width: none; padding-bottom: 4px;
+  display: flex; flex-wrap: nowrap; gap: 6px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+  padding-bottom: 6px;
 }
-.veggie-picker::-webkit-scrollbar { display: none; }
+.veggie-picker::-webkit-scrollbar { height: 4px; }
+.veggie-picker::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .veggie-item {
   flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 2px;
   padding: 6px 8px; border-radius: 8px; border: 2px solid var(--border);
@@ -398,7 +422,7 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
   </div>
   <div class="date-bar">
     <label>日付:</label>
-    <input type="date" id="dateInput" value="{{ today }}">
+    <input type="date" id="dateInput">
     <button id="todayBtn">今日</button>
   </div>
   <div class="view-toggle">
@@ -427,6 +451,7 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
       <div class="detail-title" id="detailTitle"></div>
       <div class="detail-sub" id="detailSub"></div>
     </div>
+    <button class="btn-edit-bed" id="btnRemoveBed">撤去</button>
     <button class="btn-edit-bed" id="btnEditBed">✏️ 編集</button>
   </div>
   <div class="detail-grid-wrapper">
@@ -466,6 +491,32 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
 <div id="cropActionPopup" class="popup-backdrop hidden">
   <div class="popup-card">
     <div class="popup-crop-name" id="popupCropName"></div>
+    <div class="popup-crop-meta" id="popupCropMeta"></div>
+
+    <div class="popup-section">
+      <div class="popup-section-label">植付日を変更</div>
+      <div class="popup-row">
+        <input type="date" id="popupPlantedDate" class="popup-date-input">
+        <button class="popup-btn-small" id="popupPlantedSaveBtn">変更</button>
+      </div>
+      <label class="popup-scope-label">
+        <input type="checkbox" id="plantedScopeAll">
+        畝内の同じ野菜すべてに適用
+      </label>
+    </div>
+
+    <div class="popup-section">
+      <div class="popup-section-label">収穫・撤去する</div>
+      <div class="popup-row">
+        <input type="date" id="popupRemovedDate" class="popup-date-input">
+        <button class="popup-btn-small popup-btn-orange" id="popupRemoveBtn">収穫・撤去</button>
+      </div>
+      <label class="popup-scope-label">
+        <input type="checkbox" id="removedScopeAll">
+        畝内の同じ野菜すべてに適用
+      </label>
+    </div>
+
     <button class="popup-btn-delete" id="popupDeleteBtn">この株を削除する</button>
     <button class="popup-btn-cancel" id="popupCancelBtn">キャンセル</button>
   </div>
@@ -524,6 +575,21 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
   </div>
 </div>
 
+<!-- 畝撤去ポップアップ -->
+<div id="bedRemovePopup" class="popup-backdrop hidden">
+  <div class="popup-card">
+    <div class="popup-crop-name" id="bedRemoveName"></div>
+    <div class="popup-section">
+      <div class="popup-section-label">撤去日</div>
+      <div class="popup-row">
+        <input type="date" id="bedRemovedDate" class="popup-date-input">
+      </div>
+    </div>
+    <button class="popup-btn-delete" id="bedRemoveConfirmBtn" style="background:#e67e22">撤去する</button>
+    <button class="popup-btn-cancel" id="bedRemoveCancelBtn">キャンセル</button>
+  </div>
+</div>
+
 <!-- 畝追加：名前入力ポップアップ -->
 <div id="bedNamePopup" class="popup-backdrop hidden">
   <div class="popup-card">
@@ -561,7 +627,8 @@ document.documentElement.style.setProperty('--ov-cell', CELL + 'px');
 let areaState = null;
 let veggieTypes = [];
 let currentAreaId = {{ areas.0.id }};
-let currentDate = '{{ today }}';
+const TODAY = '{{ today }}';
+let currentDate = localStorage.getItem('gardenDate') || TODAY;
 let selectedBed = null;
 let plantStep = 1;
 let selectedVeggie = null;
@@ -665,7 +732,7 @@ function buildOverview() {
   }
 
   // 俯瞰アイコンオーバーレイ
-  const iconSize = Math.max(22, Math.min(CELL * 6, 44));
+  const iconSize = Math.max(44, Math.min(CELL * 12, 88));
   const minDist  = Math.max(30, CELL * 7);   // 個体植えの近接フィルター距離
   const minStep  = Math.ceil(minDist / CELL); // エリア作物の最小ステップ（マス）
 
@@ -691,12 +758,20 @@ function buildOverview() {
       img.alt = crop.name;
       container.appendChild(img);
     } else {
-      // 筋蒔き・まとめ植え：株間ステップでアイコンを複数配置
+      // 筋蒔き・まとめ植え：エリア内に均等分布
       const spacingGrid = Math.max(1, Math.floor(crop.spacing_cm / 10));
-      const step = Math.max(spacingGrid, minStep);
-      const half = Math.floor(step / 2);
-      for (let r = crop.row_start + half; r <= crop.row_end; r += step) {
-        for (let c = crop.col_start + half; c <= crop.col_end; c += step) {
+      const step  = Math.max(spacingGrid, minStep);
+      const rows  = crop.row_end - crop.row_start + 1;
+      const cols  = crop.col_end - crop.col_start + 1;
+      const cntR  = Math.max(1, Math.floor(rows / step));
+      const cntC  = Math.max(1, Math.floor(cols / step));
+      // アイコン格子をエリア中央に揃える
+      const offR  = (rows - (cntR - 1) * step) / 2;
+      const offC  = (cols - (cntC - 1) * step) / 2;
+      for (let ri = 0; ri < cntR; ri++) {
+        for (let ci = 0; ci < cntC; ci++) {
+          const r  = crop.row_start + offR + ri * step;
+          const c  = crop.col_start + offC + ci * step;
           const cx = OV_PAD + (c + 0.5) * CELL;
           const cy = OV_PAD + (r + 0.5) * CELL;
           const img = placeOvIcon(cx, cy);
@@ -708,6 +783,11 @@ function buildOverview() {
     }
   }
 
+  // 畝追加モード中：innerHTML クリアで消えたカーソルを再アタッチ
+  if (bedAddMode) {
+    const cursor = document.getElementById('bedAddCursor');
+    if (cursor) container.appendChild(cursor);
+  }
 }
 
 function showOverview() {
@@ -775,6 +855,8 @@ function buildDetailGrid() {
             lr, lc, spacingGrid,
             cropId: crop.id, name: crop.name,
             plantingMethod: crop.planting_method,
+            plantedAt: crop.planted_at,
+            vegetableTypeId: crop.vegetable_type_id,
             iconUrl: crop.icon_url,
           });
         }
@@ -827,7 +909,7 @@ function buildDetailGrid() {
     img.style.left = `${DETAIL_PAD + (ov.lc + 0.5) * DETAIL_CELL - iconSize / 2}px`;
     img.addEventListener('click', e => {
       e.stopPropagation();
-      showCropPopup(ov.cropId, ov.name, ov.plantingMethod);
+      showCropPopup(ov.cropId, ov.name, ov.plantingMethod, ov.plantedAt, ov.vegetableTypeId);
     });
     grid.appendChild(img);
   }
@@ -1036,19 +1118,78 @@ async function confirmPlant() {
   }
 }
 
-// ─── 作物削除ポップアップ ──────────────────────
+// ─── 作物アクションポップアップ ───────────────
 let popupCropId = null;
+let popupVeggieTypeId = null;
 
-function showCropPopup(cropId, name, plantingMethod) {
+function showCropPopup(cropId, name, plantingMethod, plantedAt, vegetableTypeId) {
   popupCropId = cropId;
+  popupVeggieTypeId = vegetableTypeId ?? null;
   const label = plantingMethod === 'individual' ? name : `${name}（エリア全体）`;
   document.getElementById('popupCropName').textContent = label;
+  document.getElementById('popupCropMeta').textContent = plantedAt ? `植え付け: ${plantedAt}` : '';
+  document.getElementById('popupPlantedDate').value = plantedAt || currentDate;
+  document.getElementById('popupRemovedDate').value = currentDate;
+  document.getElementById('plantedScopeAll').checked = false;
+  document.getElementById('removedScopeAll').checked = false;
   document.getElementById('cropActionPopup').classList.remove('hidden');
+}
+
+// チェック状態に応じた対象cropId一覧を返す
+function getScopedCropIds(scopeAllChecked) {
+  if (!scopeAllChecked || !selectedBed || !popupVeggieTypeId) return [popupCropId];
+  return areaState.crops
+    .filter(c =>
+      c.vegetable_type_id === popupVeggieTypeId &&
+      c.row_start >= selectedBed.row_start && c.row_end <= selectedBed.row_end &&
+      c.col_start >= selectedBed.col_start && c.col_end <= selectedBed.col_end
+    )
+    .map(c => c.id);
 }
 
 function hideCropPopup() {
   popupCropId = null;
   document.getElementById('cropActionPopup').classList.add('hidden');
+}
+
+async function patchCrop(cropId, data) {
+  const res = await fetch(`${API}/crops/${cropId}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+async function savePlantedDate() {
+  if (!popupCropId) return;
+  const d = document.getElementById('popupPlantedDate').value;
+  if (!d) return;
+  const ids = getScopedCropIds(document.getElementById('plantedScopeAll').checked);
+  const results = await Promise.all(ids.map(id => patchCrop(id, { planted_at: d })));
+  if (results.every(r => r.ok)) {
+    document.getElementById('popupCropMeta').textContent = `植え付け: ${d}`;
+    const msg = ids.length > 1 ? `植付日を${ids.length}株まとめて変更しました` : '植付日を変更しました';
+    showToast(msg);
+    await loadState(); buildOverview(); buildDetailGrid();
+  } else {
+    showToast('一部エラーが発生しました');
+  }
+}
+
+async function removeCrop() {
+  if (!popupCropId) return;
+  const d = document.getElementById('popupRemovedDate').value;
+  if (!d) return;
+  const ids = getScopedCropIds(document.getElementById('removedScopeAll').checked);
+  const results = await Promise.all(ids.map(id => patchCrop(id, { harvested_at: d, status: 'harvested' })));
+  if (results.every(r => r.ok)) {
+    const msg = ids.length > 1 ? `${ids.length}株まとめて収穫・撤去しました` : '収穫・撤去しました';
+    showToast(msg);
+    await loadState(); buildOverview(); buildDetailGrid();
+  } else {
+    showToast('一部エラーが発生しました');
+  }
 }
 
 async function deleteCrop() {
@@ -1062,14 +1203,14 @@ async function deleteCrop() {
   const result = await res.json();
   if (result.ok) {
     showToast('削除しました');
-    await loadState();
-    buildOverview();
-    buildDetailGrid();
+    await loadState(); buildOverview(); buildDetailGrid();
   } else {
     showToast('削除エラー: ' + (result.error || ''));
   }
 }
 
+document.getElementById('popupPlantedSaveBtn').addEventListener('click', savePlantedDate);
+document.getElementById('popupRemoveBtn').addEventListener('click', removeCrop);
 document.getElementById('popupDeleteBtn').addEventListener('click', deleteCrop);
 document.getElementById('popupCancelBtn').addEventListener('click', hideCropPopup);
 document.getElementById('cropActionPopup').addEventListener('click', e => {
@@ -1095,8 +1236,11 @@ document.getElementById('areaTabs').addEventListener('click', e => {
   loadState().then(() => { buildOverview(); showOverview(); });
 });
 
+document.getElementById('dateInput').value = currentDate;
+
 document.getElementById('dateInput').addEventListener('change', e => {
   currentDate = e.target.value;
+  localStorage.setItem('gardenDate', currentDate);
   loadState().then(() => {
     buildOverview();
     if (selectedBed) buildDetailGrid();
@@ -1104,7 +1248,8 @@ document.getElementById('dateInput').addEventListener('change', e => {
 });
 
 document.getElementById('todayBtn').addEventListener('click', () => {
-  currentDate = '{{ today }}';
+  currentDate = TODAY;
+  localStorage.setItem('gardenDate', currentDate);
   document.getElementById('dateInput').value = currentDate;
   loadState().then(() => {
     buildOverview();
@@ -1168,6 +1313,46 @@ function closeBedEditMode() {
   document.getElementById('bedEditPane').classList.add('hidden');
   document.getElementById('detailPane').classList.remove('hidden');
 }
+
+function showBedRemovePopup() {
+  if (!selectedBed) return;
+  document.getElementById('bedRemoveName').textContent = selectedBed.name;
+  document.getElementById('bedRemovedDate').value = currentDate;
+  document.getElementById('bedRemovePopup').classList.remove('hidden');
+}
+
+function hideBedRemovePopup() {
+  document.getElementById('bedRemovePopup').classList.add('hidden');
+}
+
+async function confirmBedRemove() {
+  if (!selectedBed) return;
+  const d = document.getElementById('bedRemovedDate').value;
+  if (!d) return;
+  const res = await fetch(`${API}/beds/${selectedBed.id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({ deleted_at: d }),
+  });
+  const result = await res.json();
+  if (result.ok) {
+    hideBedRemovePopup();
+    showToast(`「${selectedBed.name}」を撤去しました`);
+    selectedBed = null;
+    await loadState();
+    buildOverview();
+    showOverview();
+  } else {
+    showToast('エラー: ' + (result.error || ''));
+  }
+}
+
+document.getElementById('btnRemoveBed').addEventListener('click', showBedRemovePopup);
+document.getElementById('bedRemoveConfirmBtn').addEventListener('click', confirmBedRemove);
+document.getElementById('bedRemoveCancelBtn').addEventListener('click', hideBedRemovePopup);
+document.getElementById('bedRemovePopup').addEventListener('click', e => {
+  if (e.target === e.currentTarget) hideBedRemovePopup();
+});
 
 function buildBedEditGrid() {
   const { area, beds, crops } = areaState;
@@ -1322,32 +1507,49 @@ document.getElementById('beResetBtn').addEventListener('click', () => {
 });
 
 // ─── 畝追加（タップ方式） ────────────────────
-let bedAddMode  = false;
-let bedAddStart = null; // {r, c} グローバル座標
-let bedAddEnd   = null;
+let bedAddMode   = false;
+let bedAddStart  = null; // {r, c} グローバル座標
+let bedAddEnd    = null;
+let bedHoverCell = null;
 
 function enterBedAddMode() {
-  bedAddMode  = true;
-  bedAddStart = null;
-  bedAddEnd   = null;
+  bedAddMode   = true;
+  bedAddStart  = null;
+  bedAddEnd    = null;
+  bedHoverCell = null;
   document.getElementById('bedAddBanner').classList.remove('hidden');
   document.getElementById('bedAddMsg').textContent = '始点をタップしてください';
   showOverview();
+  // カーソル要素を生成して fieldOverview に追加
+  document.getElementById('bedAddCursor')?.remove();
+  const cursor = document.createElement('div');
+  cursor.id = 'bedAddCursor';
+  cursor.style.cssText = [
+    'position:absolute', 'pointer-events:none', 'z-index:7',
+    `width:${CELL}px`, `height:${CELL}px`,
+    'background:rgba(74,124,89,0.55)',
+    'border:2px solid var(--green)',
+    'border-radius:2px', 'display:none',
+  ].join(';');
+  document.getElementById('fieldOverview').appendChild(cursor);
 }
 
 function exitBedAddMode() {
-  bedAddMode  = false;
-  bedAddStart = null;
-  bedAddEnd   = null;
+  bedAddMode   = false;
+  bedAddStart  = null;
+  bedAddEnd    = null;
+  bedHoverCell = null;
   document.getElementById('bedAddBanner').classList.add('hidden');
   document.getElementById('bedAddOverlay')?.remove();
+  document.getElementById('bedAddCursor')?.remove();
 }
 
 function drawBedAddOverlay() {
   document.getElementById('bedAddOverlay')?.remove();
   if (!bedAddStart) return;
-  const endR = bedAddEnd ? bedAddEnd.r : bedAddStart.r;
-  const endC = bedAddEnd ? bedAddEnd.c : bedAddStart.c;
+  const end  = bedAddEnd || bedHoverCell || bedAddStart;
+  const endR = end.r;
+  const endC = end.c;
   const minR = Math.min(bedAddStart.r, endR);
   const maxR = Math.max(bedAddStart.r, endR);
   const minC = Math.min(bedAddStart.c, endC);
@@ -1410,6 +1612,36 @@ async function submitBedFromTap() {
     showToast('エラー: ' + (result.error || ''));
   }
 }
+
+document.getElementById('fieldOverview').addEventListener('mousemove', e => {
+  if (!bedAddMode || !areaState) return;
+  const rect = document.getElementById('fieldOverview').getBoundingClientRect();
+  const r = Math.min(areaState.area.rows - 1, Math.max(0, Math.floor((e.clientY - rect.top  - OV_PAD) / CELL)));
+  const c = Math.min(areaState.area.cols - 1, Math.max(0, Math.floor((e.clientX - rect.left - OV_PAD) / CELL)));
+  bedHoverCell = { r, c };
+
+  const cursor = document.getElementById('bedAddCursor');
+  if (cursor) {
+    cursor.style.display = 'block';
+    cursor.style.top  = `${OV_PAD + r * CELL}px`;
+    cursor.style.left = `${OV_PAD + c * CELL}px`;
+  }
+  if (bedAddStart && !bedAddEnd) drawBedAddOverlay();
+
+  const pos = `(縦 ${(r / 10).toFixed(1)}m  横 ${(c / 10).toFixed(1)}m)`;
+  document.getElementById('bedAddMsg').textContent =
+    bedAddStart ? `終点をタップ ${pos}` : `始点をタップ ${pos}`;
+});
+
+document.getElementById('fieldOverview').addEventListener('mouseleave', () => {
+  if (!bedAddMode) return;
+  const cursor = document.getElementById('bedAddCursor');
+  if (cursor) cursor.style.display = 'none';
+  bedHoverCell = null;
+  if (bedAddStart && !bedAddEnd) drawBedAddOverlay();
+  document.getElementById('bedAddMsg').textContent =
+    bedAddStart ? '終点をタップしてください' : '始点をタップしてください';
+});
 
 document.getElementById('fieldOverview').addEventListener('click', e => {
   if (!bedAddMode) return;
