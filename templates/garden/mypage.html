@@ -40,13 +40,28 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
 }
 .area-tab.active { background: var(--green); color: white; border-color: var(--green); }
 
-.date-bar { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
-.date-bar input[type="date"] {
-  padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85rem;
+.date-bar {
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px; flex-wrap: wrap; flex: 1;
 }
-.date-bar button {
-  padding: 4px 8px; background: var(--bg); border: 1px solid var(--border);
-  border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: var(--text-soft);
+.date-nav-btn {
+  padding: 5px 9px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; font-size: 1rem; color: var(--text-soft);
+  min-width: 34px; line-height: 1; user-select: none;
+}
+.date-nav-btn:hover { background: #e8f5e9; color: var(--green); }
+.date-display {
+  display: flex; align-items: center; gap: 2px;
+  font-size: 0.95rem; font-weight: 500; color: var(--text);
+}
+#yearSelect {
+  padding: 4px 2px; border: 1px solid var(--border); border-radius: 4px;
+  font-size: 0.9rem; background: var(--bg); color: var(--text); cursor: pointer;
+}
+#todayBtn {
+  padding: 5px 10px; background: var(--green); color: white;
+  border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;
+  margin-left: 4px;
 }
 
 .view-toggle {
@@ -67,6 +82,7 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
 #overviewPane {
   flex: 1; overflow: auto; -webkit-overflow-scrolling: touch;
   padding: 10px; background: var(--bg);
+  display: flex; justify-content: center; align-items: flex-start;
 }
 .field-overview {
   display: inline-block; background: #e8ddd0;
@@ -421,8 +437,16 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
     {% endfor %}
   </div>
   <div class="date-bar">
-    <label>日付:</label>
-    <input type="date" id="dateInput">
+    <button class="date-nav-btn" id="prevMonthBtn" title="前の月">«</button>
+    <button class="date-nav-btn" id="prevDayBtn"   title="前の日">‹</button>
+    <span class="date-display" style="position:relative;">
+      <select id="yearSelect"></select>年
+      <span id="monthDayLabel"></span>
+      <button class="date-nav-btn" id="calendarBtn" title="カレンダーで選択" style="font-size:0.85rem;padding:5px 7px;">📅</button>
+      <input type="date" id="dateInput" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;top:0;left:0;">
+    </span>
+    <button class="date-nav-btn" id="nextDayBtn"   title="次の日">›</button>
+    <button class="date-nav-btn" id="nextMonthBtn" title="次の月">»</button>
     <button id="todayBtn">今日</button>
   </div>
   <div class="view-toggle">
@@ -1237,26 +1261,78 @@ document.getElementById('areaTabs').addEventListener('click', e => {
   loadState().then(() => { buildOverview(); showOverview(); });
 });
 
-document.getElementById('dateInput').value = currentDate;
+// ─── 日付コントロール ──────────────────────────
+function initYearSelect() {
+  const sel = document.getElementById('yearSelect');
+  sel.innerHTML = '';
+  const base = new Date().getFullYear();
+  for (let y = base - 5; y <= base + 5; y++) {
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    sel.appendChild(opt);
+  }
+}
 
-document.getElementById('dateInput').addEventListener('change', e => {
-  currentDate = e.target.value;
-  localStorage.setItem('gardenDate', currentDate);
-  loadState().then(() => {
-    buildOverview();
-    if (selectedBed) buildDetailGrid();
-  });
-});
-
-document.getElementById('todayBtn').addEventListener('click', () => {
-  currentDate = TODAY;
-  localStorage.setItem('gardenDate', currentDate);
+function updateDateUI() {
+  const d = new Date(currentDate + 'T00:00:00');
+  document.getElementById('yearSelect').value = d.getFullYear();
+  document.getElementById('monthDayLabel').textContent =
+    `${d.getMonth() + 1}月${d.getDate()}日`;
   document.getElementById('dateInput').value = currentDate;
+}
+
+function setCurrentDate(iso) {
+  currentDate = iso;
+  localStorage.setItem('gardenDate', currentDate);
+  updateDateUI();
   loadState().then(() => {
     buildOverview();
     if (selectedBed) buildDetailGrid();
   });
+}
+
+initYearSelect();
+updateDateUI();
+
+// toISOString()はUTCなのでローカル日付を文字列化する専用関数を使う
+function localDateISO(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function shiftDay(delta) {
+  const d = new Date(currentDate + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  setCurrentDate(localDateISO(d));
+}
+function shiftMonth(delta) {
+  const d = new Date(currentDate + 'T00:00:00');
+  const origDay = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + delta);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(origDay, lastDay));
+  setCurrentDate(localDateISO(d));
+}
+
+document.getElementById('yearSelect').addEventListener('change', e => {
+  const d = new Date(currentDate + 'T00:00:00');
+  d.setFullYear(parseInt(e.target.value));
+  setCurrentDate(localDateISO(d));
 });
+document.getElementById('calendarBtn').addEventListener('click', () => {
+  const inp = document.getElementById('dateInput');
+  if (inp.showPicker) inp.showPicker(); else inp.click();
+});
+document.getElementById('dateInput').addEventListener('change', e => {
+  if (e.target.value) setCurrentDate(e.target.value);
+});
+document.getElementById('prevMonthBtn').addEventListener('click', () => shiftMonth(-1));
+document.getElementById('nextMonthBtn').addEventListener('click', () => shiftMonth(1));
+document.getElementById('prevDayBtn').addEventListener('click',   () => shiftDay(-1));
+document.getElementById('nextDayBtn').addEventListener('click',   () => shiftDay(1));
+document.getElementById('todayBtn').addEventListener('click', () => setCurrentDate(TODAY));
 
 document.getElementById('backBtn').addEventListener('click', () => {
   buildOverview(); // 選択ハイライト付きで再描画
