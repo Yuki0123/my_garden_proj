@@ -148,5 +148,5 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # ログイン・ログアウト後のリダイレクト先
-LOGIN_REDIRECT_URL = "/"  # 後で作るトップページへ
+LOGIN_REDIRECT_URL = "/garden2/"
 LOGOUT_REDIRECT_URL = "login"  # ログアウトしたらログイン画面へ
