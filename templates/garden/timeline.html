@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+{% block title %}畝タイムライン{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --green: #4a7c59;
+  --bed: #c8a878;
+  --bg: #f5f0ea;
+  --white: #ffffff;
+  --text: #2a2018;
+  --text-soft: #7a6a58;
+  --border: #e0d8ce;
+}
+
+body { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
+       flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ─── サブヘッダー ─── */
+.tl-subheader {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 12px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.area-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.area-tab {
+  padding: 4px 12px; border: 1px solid var(--border); border-radius: 4px;
+  background: var(--bg); cursor: pointer; font-size: 0.85rem; color: var(--text-soft);
+}
+.area-tab.active { background: var(--green); color: white; border-color: var(--green); }
+
+.year-nav {
+  display: flex; align-items: center; gap: 6px; margin-left: auto;
+}
+.year-nav-btn {
+  padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px;
+  background: var(--bg); cursor: pointer; font-size: 1rem; color: var(--text-soft);
+  line-height: 1;
+}
+.year-nav-btn:hover { background: #e8f5e9; color: var(--green); }
+.year-label { font-size: 1rem; font-weight: 700; color: var(--text); min-width: 5em; text-align: center; }
+
+.back-link {
+  padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px;
+  font-size: 0.8rem; color: var(--text-soft); text-decoration: none; background: var(--bg);
+}
+.back-link:hover { color: var(--green); }
+
+/* ─── タイムライン本体 ─── */
+.tl-outer {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: var(--bg);
+}
+
+/* ヘッダー行：月ラベル */
+.tl-head-row {
+  display: flex; position: sticky; top: 0; z-index: 10;
+  background: var(--white); border-bottom: 2px solid var(--border);
+}
+.tl-head-label {
+  width: 110px; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+}
+.tl-head-months {
+  flex: 1; display: flex;
+}
+.tl-head-month {
+  flex: 1; text-align: center; font-size: 0.75rem; font-weight: 600;
+  color: var(--text-soft); padding: 6px 0;
+  border-left: 1px solid var(--border);
+}
+.tl-head-month.current { color: var(--green); }
+
+/* 畝行 */
+.tl-row {
+  display: flex; border-bottom: 1px solid var(--border);
+  min-height: 32px;
+}
+.tl-bed-row { background: #faf7f3; min-height: 36px; }
+.tl-crop-row { background: var(--white); min-height: 28px; }
+
+.tl-label {
+  width: 110px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 8px; font-size: 0.82rem; color: var(--text);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.tl-bed-label { font-weight: 700; font-size: 0.88rem; color: var(--green); }
+.tl-crop-label { color: var(--text-soft); padding-left: 20px; }
+.tl-crop-icon { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+
+.tl-chart {
+  flex: 1; position: relative; overflow: hidden;
+}
+
+/* 月グリッド線 */
+.tl-grid-line {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: var(--border); pointer-events: none;
+}
+/* 今日線 */
+.tl-today-line {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: rgba(224, 112, 64, 0.7); pointer-events: none; z-index: 2;
+}
+
+/* バー */
+.tl-bar {
+  position: absolute; top: 20%; height: 60%;
+  border-radius: 4px; min-width: 2px;
+}
+.tl-bed-bar {
+  background: var(--bed); cursor: pointer;
+  top: 25%; height: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  transition: filter 0.1s;
+}
+.tl-bed-bar:hover { filter: brightness(0.88); }
+.tl-bed-bar.removed {
+  background: repeating-linear-gradient(
+    45deg, var(--bed), var(--bed) 4px, #e8d8bc 4px, #e8d8bc 8px
+  );
+}
+.tl-crop-bar {
+  top: 18%; height: 64%; opacity: 0.85;
+}
+.tl-crop-bar.done { opacity: 0.45; }
+
+/* 空メッセージ */
+.tl-empty {
+  text-align: center; padding: 40px; color: var(--text-soft); font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tl-subheader">
+  <div class="area-tabs" id="areaTabs">
+    {% for area in areas %}
+    <button class="area-tab{% if forloop.first %} active{% endif %}"
+            data-area-id="{{ area.id }}">{{ area.name }}</button>
+    {% endfor %}
+  </div>
+  <div class="year-nav">
+    <button class="year-nav-btn" id="prevYearBtn">«</button>
+    <span class="year-label" id="yearLabel"></span>
+    <button class="year-nav-btn" id="nextYearBtn">»</button>
+  </div>
+  <a href="{% url 'garden:mypage' %}" class="back-link">← 畑に戻る</a>
+</div>
+
+<div class="tl-outer" id="tlOuter">
+  <!-- 月ヘッダー -->
+  <div class="tl-head-row">
+    <div class="tl-head-label"></div>
+    <div class="tl-head-months" id="monthHeader"></div>
+  </div>
+  <!-- タイムライン行 -->
+  <div id="tlBody"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const AREAS   = [{% for a in areas %}{"id":{{a.id}},"name":"{{a.name}}"},{% endfor %}];
+const TODAY   = '{{ today }}';
+const MYPAGE  = '{% url "garden:mypage" %}';
+
+let currentAreaId = AREAS[0]?.id;
+const _savedDate  = localStorage.getItem('gardenDate');
+let currentYear   = _savedDate ? new Date(_savedDate + 'T00:00:00').getFullYear() : new Date().getFullYear();
+
+// ── 月ヘッダーを描画 ──────────────────────────
+const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+function buildMonthHeader() {
+  const el = document.getElementById('monthHeader');
+  el.innerHTML = '';
+  const now = new Date(TODAY + 'T00:00:00');
+  MONTHS.forEach((m, i) => {
+    const div = document.createElement('div');
+    div.className = 'tl-head-month' + (now.getFullYear() === currentYear && now.getMonth() === i ? ' current' : '');
+    div.textContent = m;
+    el.appendChild(div);
+  });
+}
+
+// ── 日付 → 年内の比率(0〜1) ──────────────────
+function dayFrac(dateStr) {
+  const d    = new Date(dateStr + 'T00:00:00');
+  const s    = new Date(currentYear, 0, 1);
+  const e    = new Date(currentYear + 1, 0, 1);
+  return Math.min(1, Math.max(0, (d - s) / (e - s)));
+}
+
+// ── 今日の比率 ───────────────────────────────
+function todayFrac() {
+  return new Date(TODAY + 'T00:00:00').getFullYear() === currentYear
+    ? dayFrac(TODAY) : -1;
+}
+
+// ── グリッド線 + 今日線を chart に追加 ────────
+function addGridLines(chart) {
+  for (let m = 1; m <= 11; m++) {
+    const line = document.createElement('div');
+    line.className = 'tl-grid-line';
+    line.style.left = `${(m / 12) * 100}%`;
+    chart.appendChild(line);
+  }
+  const tf = todayFrac();
+  if (tf >= 0) {
+    const today = document.createElement('div');
+    today.className = 'tl-today-line';
+    today.style.left = `${tf * 100}%`;
+    chart.appendChild(today);
+  }
+}
+
+// ── バーを生成 ───────────────────────────────
+function makeBar(cls, startStr, endStr, color) {
+  const left = dayFrac(startStr);
+  let right  = endStr ? dayFrac(endStr) : 1;
+  const tf   = todayFrac();
+  if (tf >= 0) right = Math.min(right, tf); // 今日線で切る
+  const bar  = document.createElement('div');
+  bar.className = `tl-bar ${cls}`;
+  bar.style.left  = `${left * 100}%`;
+  bar.style.width = `${Math.max(0.3, (right - left) * 100)}%`;
+  if (color) bar.style.background = color;
+  return bar;
+}
+
+// ── タイムライン描画 ─────────────────────────
+function renderTimeline(data) {
+  const body = document.getElementById('tlBody');
+  body.innerHTML = '';
+
+  if (!data.beds.length) {
+    body.innerHTML = '<div class="tl-empty">この年に畝データがありません</div>';
+    return;
+  }
+
+  for (const bed of data.beds) {
+    // 畝行
+    const bedRow = document.createElement('div');
+    bedRow.className = 'tl-row tl-bed-row';
+
+    const label = document.createElement('div');
+    label.className = 'tl-label tl-bed-label';
+    label.textContent = bed.name;
+
+    const chart = document.createElement('div');
+    chart.className = 'tl-chart';
+    addGridLines(chart);
+
+    const bedBar = makeBar(
+      'tl-bed-bar' + (bed.deleted_at ? ' removed' : ''),
+      bed.created_at,
+      bed.deleted_at,
+      null,
+    );
+    const endLabel = bed.deleted_at ? bed.deleted_at : '現在';
+    bedBar.title = `${bed.name}：${bed.created_at} 〜 ${endLabel}`;
+    bedBar.addEventListener('click', () => {
+      const viewDate = getBedViewDate(bed);
+      window.location.href = `${MYPAGE}?open_bed=${bed.id}&date=${viewDate}`;
+    });
+    chart.appendChild(bedBar);
+
+    bedRow.appendChild(label);
+    bedRow.appendChild(chart);
+    body.appendChild(bedRow);
+
+    // 作物サブ行
+    for (const crop of bed.crops) {
+      const cropRow = document.createElement('div');
+      cropRow.className = 'tl-row tl-crop-row';
+
+      const cropLabel = document.createElement('div');
+      cropLabel.className = 'tl-label tl-crop-label';
+      if (crop.icon_url) {
+        const img = document.createElement('img');
+        img.src = crop.icon_url;
+        img.className = 'tl-crop-icon';
+        cropLabel.appendChild(img);
+      }
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = crop.count > 1 ? `${crop.name} ×${crop.count}` : crop.name;
+      nameSpan.style.overflow = 'hidden';
+      nameSpan.style.textOverflow = 'ellipsis';
+      nameSpan.style.whiteSpace = 'nowrap';
+      cropLabel.appendChild(nameSpan);
+
+      const cropChart = document.createElement('div');
+      cropChart.className = 'tl-chart';
+      addGridLines(cropChart);
+
+      const isDone = !!crop.harvested_at;
+      const cropBar = makeBar(
+        'tl-crop-bar' + (isDone ? ' done' : ''),
+        crop.planted_at,
+        crop.harvested_at,
+        crop.color || '#4a7c59',
+      );
+      const endStr = crop.harvested_at ? crop.harvested_at : '栽培中';
+      cropBar.title = `${crop.name}：${crop.planted_at} 〜 ${endStr}`;
+      cropChart.appendChild(cropBar);
+
+      cropRow.appendChild(cropLabel);
+      cropRow.appendChild(cropChart);
+      body.appendChild(cropRow);
+    }
+  }
+}
+
+// ── 畝クリック時の表示日付を決定 ───────────────
+function getBedViewDate(bed) {
+  if (bed.deleted_at) {
+    // 撤去済み → 撤去日の前日（まだ存在していた最後の日）
+    const d = new Date(bed.deleted_at + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  // 現役 → 閲覧年が今年なら今日、過去年なら年末
+  const todayYear = new Date(TODAY + 'T00:00:00').getFullYear();
+  return currentYear === todayYear ? TODAY : `${currentYear}-12-31`;
+}
+
+// ── API 呼び出し ─────────────────────────────
+async function load() {
+  document.getElementById('yearLabel').textContent = `${currentYear}年`;
+  buildMonthHeader();
+  const res  = await fetch(`/garden/api/area/${currentAreaId}/timeline/?year=${currentYear}`);
+  const data = await res.json();
+  renderTimeline(data);
+}
+
+// ── イベントリスナー ─────────────────────────
+document.getElementById('prevYearBtn').addEventListener('click', () => { currentYear--; load(); });
+document.getElementById('nextYearBtn').addEventListener('click', () => { currentYear++; load(); });
+
+document.querySelectorAll('.area-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.area-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentAreaId = parseInt(btn.dataset.areaId);
+    load();
+  });
+});
+
+load();
+</script>
+{% endblock %}

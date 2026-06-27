@@ -12,4 +12,6 @@ urlpatterns = [
     path("api/beds/<int:bed_id>/", views.update_bed_api, name="update_bed_api"),
     path("api/crops/", views.plant_crop_api, name="plant_crop_api"),
     path("api/crops/<int:crop_id>/", views.crop_detail_api, name="crop_detail_api"),
+    path("timeline/", views.timeline_view, name="timeline"),
+    path("api/area/<int:area_id>/timeline/", views.timeline_api, name="timeline_api"),
 ]

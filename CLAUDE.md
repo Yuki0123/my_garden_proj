@@ -3,7 +3,7 @@
 ## プロジェクト概要
 
 Djangoベースの畑管理アプリ。個人の農地（7m×18m）を10cm単位のグリッドで管理する。
-ConoHa VPS（Nginx + Gunicorn + Supabase PostgreSQL）にデプロイ済み。GitHub Actions CI/CD。
+ConoHa VPS（Nginx + Gunicorn + PostgreSQL）にデプロイ済み。GitHub Actions CI/CD。
 
 ---
 
@@ -66,7 +66,7 @@ def get_overlapping_crops(area, row_start, col_start, row_end, col_end, exclude_
 ## VegetableTypeの追加フィールド（連作チェック用）
 
 ```python
-rotation_years  = models.PositiveSmallIntegerField("連作回避年数", default=3)
+rotation_years     = models.PositiveSmallIntegerField("連作回避年数", default=3)
 rotation_buffer_cm = models.PositiveSmallIntegerField("影響半径(cm)", default=50)
 ```
 
@@ -103,36 +103,64 @@ def get_rotation_warnings(area, veg_type, row_start, col_start, row_end, col_end
 
 ## 植え付け方法
 
-`VegetableType.planting_method`で2種類を管理：
+`VegetableType.planting_method`で3種類を管理：
 
-- `individual` — 個体植え（トマト、ナスなど）。株間バリデーションあり
-- `dense` — 密集・筋蒔き（ニンジン、小松菜など）。条の本数・播種幅で管理
+```python
+PLANTING_METHOD_CHOICES = [
+    ("individual", "1株ずつ"),
+    ("row", "筋蒔き"),
+    ("block", "まとめ植え"),
+]
+```
+
+| 植付方法 | 例 | 範囲指定 | 株間 |
+|---|---|---|---|
+| `individual` | トマト、ナス | 1点クリック×株数 | バリデーションあり |
+| `row` | ニンジン、小松菜 | 始点→終点で範囲 | 条の本数・幅で管理 |
+| `block` | ニンニク、球根類 | 始点→終点で範囲 | 範囲内に格子状に自動配置 |
 
 UIのフローも植え付け方法で分岐する：
-- 個体植え → 株の位置を1点タップ × 株数
-- 筋蒔き → 始点→終点で範囲指定
+- `individual` → 株の位置を1点クリック × 株数
+- `row` → 始点→終点で範囲指定
+- `block` → 始点→終点で範囲指定、株間に基づき格子状に自動配置
 
 ---
 
 ## UIの設計方針
+
+### 開発フェーズ
+
+- **現在はPC（マウス操作）を優先して作り込む**
+- スマホ対応は後フェーズで対応（2タップ方式などに変換）
+- PCで操作感を固めてからスマホ向けに変換する設計にしておく
 
 ### 2モード構成
 
 1. **俯瞰モード**（全体ビュー）
    - 4pxセルで7m×18mを全体表示
    - 作物のある場所を野菜ごとの色で表示（何が植わってるかわかる）
-   - 畝をタップで編集モードへ
+   - 畝をクリックで編集モードへ
 
 2. **編集モード**（畝詳細ビュー）
    - 選んだ畝だけ36pxセルで拡大表示
    - 上部に0m〜7mのスケール表示
-   - 植え付けフロー：野菜選択 → 始点タップ → 終点タップ → 警告確認 → 植え付け
+   - 植え付けフロー：野菜選択 → 始点クリック → 終点クリック → 警告確認 → 植え付け
 
-### スマホ対応
+### 畝・作物の操作（PC向け）
 
-- ドラッグ操作は廃止（タッチでのドラッグが不安定なため）
-- **2タップ方式**（始点タップ→終点タップ）で範囲指定
-- セルサイズ最低36px
+**畝のリサイズ・移動**
+- クリックで選択 → 端・角にハンドルが出る
+- ハンドルをドラッグでリサイズ
+- 畝の中央をドラッグで移動
+- Figma/Photoshopと同じ操作感を目指す
+
+**「前回と同じ位置」問題**
+- 畝追加モードで過去の畝をゴースト（薄い色）表示
+- ゴーストをクリックしたらその位置に新しい畝を生成
+
+**作物の移動**
+- PCではドラッグ&ドロップで移動
+- スマホでは長押し→タップで移動（後フェーズ）
 
 ### 植え付け時の確認フロー
 
@@ -140,6 +168,58 @@ UIのフローも植え付け方法で分岐する：
 2. 連作チェック → 「3年前にここでトマトを育てています」
 3. 株間バリデーション → 「株間が狭いです（推奨50cm）」
 4. すべて警告のみ、禁止はしない
+
+---
+
+## トップページ（garden/）の設計方針
+
+### ダッシュボード構成
+
+- `garden/`はダッシュボードとして機能する
+- 複数の`GardenArea`をタブで切り替えて俯瞰図を表示
+- タブ例：「南側の畑」「第1圃場」など
+
+### 日付セレクター
+
+- ページ上部に日付セレクター（DateSelector）を配置
+- 選択した日付の畑の状態を俯瞰図に反映する
+- **表示ルール**：開始日〜終了日の範囲内にあるものだけ表示する
+- デフォルトは今日の日付
+- 過去の日付を選ぶと「あの日の畑」が再現できる（2021年からの記録あり）
+
+| モデル | 開始日 | 終了日 |
+|---|---|---|
+| `Bed` | `created_at` | `deleted_at`（nullなら現在も有効） |
+| `Crop` | `planted_at` | `harvested_at`（nullなら栽培中） |
+| `SoilStatusArea` | `start_date` | `end_date`（nullなら継続中） |
+
+### バックエンドのクエリ例
+
+```python
+def get_active_crops(area, target_date):
+    return Crop.objects.filter(
+        area=area,
+        planted_at__lte=target_date,
+    ).filter(
+        models.Q(harvested_at__isnull=True) |
+        models.Q(harvested_at__gte=target_date)
+    )
+
+def get_active_beds(area, target_date):
+    return Bed.objects.filter(
+        area=area,
+        created_at__lte=target_date,
+    ).filter(
+        models.Q(deleted_at__isnull=True) |
+        models.Q(deleted_at__gte=target_date)
+    )
+```
+
+### UIの動作
+
+1. 日付を変更 → APIに日付を渡す → 俯瞰図を再描画
+2. デフォルトは今日の日付
+3. 過去の日付を選ぶと「あの日の畑」が再現できる
 
 ---
 
@@ -154,7 +234,7 @@ UIのフローも植え付け方法で分岐する：
 ## 技術スタック
 
 - Django（バックエンド）
-- Supabase（PostgreSQL）
+- PostgreSQL（ConoHa VPS上でlocalhost運用）
 - Nginx + Gunicorn（ConoHa VPS）
 - JavaScript（フロントエンド、クラスベースでリファクタリング済み）
   - `GardenEditor`, `GardenAPI`, `GardenController`等のクラス構成
@@ -172,7 +252,7 @@ my_garden_proj/          ← VSCodeのルート、CLAUDE.mdはここ
 ├── calendar_app/
 ├── config/              ← Django設定（settings.py, urls.py等）
 ├── crops/               ← 旧app（廃止予定）
-├── garden/               ← 新app（新規作成予定）
+├── garden/              ← 新app
 ├── media/
 ├── templates/
 ├── manage.py
@@ -211,7 +291,7 @@ my_garden_proj/          ← VSCodeのルート、CLAUDE.mdはここ
   1. `crops`appの既存マイグレーションファイルは削除
   2. 新app `garden`のマイグレーションを最初から作成
   3. ローカル：`db.sqlite3`を削除して`migrate`し直す
-  4. 本番Supabase：ダッシュボードから既存テーブルをdropして`migrate`
+  4. 本番PostgreSQL：既存テーブルをdropして`migrate`
 - 既存データはテストデータのみなので消えても問題なし
 
 ---
@@ -234,7 +314,7 @@ my_garden_proj/          ← VSCodeのルート、CLAUDE.mdはここ
 
 ## データベース接続情報（ConoHa VPS上のPostgreSQL）
 
-SupabaseからConoHa VPS上のPostgreSQLに移行済み。
+ConoHa VPS上のPostgreSQLをlocalhost運用。Supabaseは使っていない。
 
 ```
 HOST: localhost
@@ -254,53 +334,3 @@ DATABASE_URL=postgres://garden_user:password@localhost:5432/my_garden_db
 
 ※ PostgreSQLは同じVPS上でlocalhostで動いているため、
 　ConoHaのセキュリティグループで5432番ポートを開ける必要はない。
-
----
-
-## トップページ（garden/）の設計方針
-
-### ダッシュボード構成
-
-- `garden/`はダッシュボードとして機能する
-- 複数の`GardenArea`をタブで切り替えて俯瞰図を表示
-- タブ例：「南側の畑」「第1圃場」など
-
-### 日付セレクター
-
-- ページ上部に日付セレクター（DateSelector）を配置
-- 選択した日付の畑の状態を俯瞰図に反映する
-- **表示ルール**：開始日〜終了日の範囲内にあるものだけ表示する
-
-| モデル | 開始日 | 終了日 |
-|---|---|---|
-| `Bed` | `created_at` | `deleted_at`（nullなら現在も有効） |
-| `Crop` | `planted_at` | `harvested_at`（nullなら栽培中） |
-| `SoilStatusArea` | `start_date` | `end_date`（nullなら継続中） |
-
-### バックエンドのクエリ例
-
-```python
-def get_active_crops(area, target_date):
-    return Crop.objects.filter(
-        area=area,
-        planted_at__lte=target_date,
-    ).filter(
-        models.Q(harvested_at__isnull=True) |
-        models.Q(harvested_at__gte=target_date)
-    )
-
-def get_active_beds(area, target_date):
-    return Bed.objects.filter(
-        area=area,
-        created_at__lte=target_date,
-    ).filter(
-        models.Q(deleted_at__isnull=True) |
-        models.Q(deleted_at__gte=target_date)
-    )
-```
-
-### UIの動作
-
-1. 日付を変更 → APIに日付を渡す → 俯瞰図を再描画
-2. デフォルトは今日の日付
-3. 過去の日付を選ぶと「あの日の畑」が再現できる

@@ -423,6 +423,7 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
 .be-cell.be-start { background: rgba(74,124,89,0.8) !important; outline: 2px solid var(--green); z-index: 1; position: relative; }
 .be-cell.be-range { background: rgba(74,124,89,0.35) !important; }
 .be-cell.be-end   { background: rgba(74,124,89,0.8) !important; outline: 2px solid var(--green); z-index: 1; position: relative; }
+
 </style>
 {% endblock %}
 
@@ -455,6 +456,7 @@ main { padding: 0 !important; max-width: 100% !important; margin: 0 !important;
     <button class="toggle-btn" id="btnDetail" disabled>編集</button>
   </div>
   <button class="btn-add-bed" id="btnAddBed">＋ 畝を追加</button>
+  <a href="{% url 'garden:timeline' %}" class="btn-add-bed" style="text-decoration:none;">📅 年表</a>
 </div>
 
 <!-- 俯瞰パネル -->
@@ -1811,10 +1813,26 @@ document.getElementById('bedModal').addEventListener('click', e => {
 
 // ─── 初期化 ──────────────────────────────────
 async function init() {
+  const urlParams = new URLSearchParams(window.location.search);
+  // タイムラインからの遷移で日付指定がある場合は loadState() 前に反映
+  const openDate = urlParams.get('date');
+  if (openDate) {
+    currentDate = openDate;
+    localStorage.setItem('gardenDate', currentDate);
+    updateDateUI();
+  }
+
   await Promise.all([loadState(), loadVeggieTypes()]);
   buildOverview();
   buildFamilyTabs();
   buildVeggiePicker();
+
+  // タイムラインからの遷移：?open_bed=ID で畝を自動表示
+  const openBedId = urlParams.get('open_bed');
+  if (openBedId && areaState) {
+    const bed = areaState.beds.find(b => b.id === parseInt(openBedId));
+    if (bed) openBed(bed);
+  }
 }
 init();
 </script>

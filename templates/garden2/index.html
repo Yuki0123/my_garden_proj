@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>菜園手帖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-serif;color:#2c2a22}
+
+/* ─── App shell ─── */
+.app{
+  max-width:430px;margin:0 auto;height:100dvh;
+  display:flex;flex-direction:column;overflow:hidden;
+  background:#f6f2e8;position:relative;
+  box-shadow:0 0 40px rgba(0,0,0,.15);
+}
+
+/* ─── Header ─── */
+.app-header{
+  padding:14px 18px 6px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.app-logo{display:flex;align-items:center;gap:8px}
+.app-logo-icon{
+  width:26px;height:26px;border-radius:50%;background:#5d8a55;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.app-logo-leaf{width:9px;height:13px;background:#f6f2e8;border-radius:0 9px 0 9px;transform:rotate(-20deg)}
+.app-logo-name{font-family:'Shippori Mincho',serif;font-size:20px;font-weight:600;color:#2c2a22}
+.app-date-block{text-align:right;line-height:1.15}
+.app-date-label{font-size:9px;color:#a79e88;letter-spacing:.06em;font-weight:600}
+.app-date-val{font-size:12px;color:#6b6655;font-weight:700}
+
+/* ─── Year scrubber ─── */
+.scrub-wrap{padding:4px 16px 6px;flex-shrink:0}
+.scrub-caption{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:6px;
+}
+.scrub-caption-text{font-size:10px;color:#8a8067;font-weight:700;letter-spacing:.04em}
+.scrub-caption-sub{font-size:10px;color:#a79e88;font-weight:600}
+.year-chips{display:flex;gap:7px}
+
+/* ─── Date chips (garden tab only) ─── */
+.date-chips-wrap{
+  padding:0 16px 8px;flex-shrink:0;
+  display:flex;align-items:center;gap:8px;
+}
+.date-chips-label{font-size:10px;color:#a79e88;font-weight:600;white-space:nowrap;flex-shrink:0}
+.date-chips{
+  display:flex;gap:6px;overflow-x:auto;
+  scrollbar-width:none;padding-bottom:2px;
+}
+.date-chips::-webkit-scrollbar{display:none}
+.date-chip{
+  flex-shrink:0;padding:4px 10px 3px;border-radius:20px;
+  border:1px solid #e6dfcd;background:#efe9da;
+  font-size:11px;font-weight:700;color:#7a7060;cursor:pointer;
+  white-space:nowrap;transition:all .15s;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.date-chip.active{background:var(--accent);color:#fff;border-color:transparent}
+.date-chip.active .chip-tags{opacity:.75}
+.date-chip.is-today{border-color:#a79e88}
+.chip-tags{display:flex;gap:2px}
+.chip-tag{
+  font-size:8px;font-weight:700;line-height:1.4;
+  padding:0 3px;border-radius:3px;
+}
+.chip-tag.bed     {background:#e4d8c8;color:#7a5530}
+.chip-tag.planted {background:#d5eacd;color:#34682c}
+.chip-tag.harvested{background:#f0e2c0;color:#8a5e20}
+.year-chip{
+  flex:1;padding:7px 4px 6px;border-radius:13px;border:1px solid #e6dfcd;
+  background:#efe9da;cursor:pointer;text-align:center;
+  transition:background .15s,border-color .15s;
+}
+.year-chip.active{background:var(--accent);border-color:transparent}
+.year-chip.active-past{background:#94865f;border-color:transparent}
+.year-chip-year{
+  font-family:'Shippori Mincho',serif;font-size:16px;font-weight:600;
+  color:#5a5446;line-height:1.1;display:block;
+}
+.year-chip.active .year-chip-year,
+.year-chip.active-past .year-chip-year{color:#fff}
+.year-chip-tag{font-size:9px;color:#a79e88;font-weight:700;display:block;margin-top:1px}
+.year-chip.active .year-chip-tag,
+.year-chip.active-past .year-chip-tag{color:rgba(255,255,255,.8)}
+
+/* ─── Scrollable body ─── */
+.tab-body{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:4px 16px 18px;
+  scrollbar-width:none;
+}
+.tab-body::-webkit-scrollbar{display:none}
+
+/* ─── Bottom tab bar ─── */
+.bottom-tabs{
+  display:flex;border-top:1px solid #e6dfcd;background:#f6f2e8;
+  padding:8px 0 env(safe-area-inset-bottom,8px);flex-shrink:0;
+}
+.tab-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:3px;background:none;border:none;cursor:pointer;
+  color:#a79e88;padding:4px 0;transition:color .15s;
+}
+.tab-btn.active{color:var(--accent)}
+.tab-btn-label{font-size:10px;font-weight:700}
+
+/* ─── CSS vars ─── */
+:root{--accent:#5d8a55}
+
+/* ─── Area selector ─── */
+.area-tabs{display:flex;gap:6px;margin-bottom:10px}
+.area-tab{
+  padding:5px 14px;border:1px solid #e6dfcd;border-radius:20px;
+  background:#fff;font-size:12px;font-weight:700;color:#8a8067;
+  cursor:pointer;transition:all .15s;
+}
+.area-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ─── Garden map ─── */
+.map-section{display:flex;flex-direction:column;gap:8px}
+.map-title-row{display:flex;align-items:baseline;justify-content:space-between;padding:0 2px}
+.map-title{font-family:'Shippori Mincho',serif;font-size:15px;font-weight:600;color:#33302a}
+.map-sub{font-size:10px;color:#a79e88;font-weight:600}
+
+.garden-map{
+  position:relative;width:100%;
+  background:linear-gradient(to bottom,#d6cbb3,#cdc2a9);
+  border-radius:12px;border:1px solid #c2b596;
+  overflow:hidden;
+  box-shadow:inset 0 1px 4px rgba(90,72,40,.12);
+}
+/* aspect-ratio set inline based on area.rows/cols */
+
+.bed-btn{
+  position:absolute;border-radius:5px;cursor:pointer;
+  overflow:hidden;display:flex;align-items:center;
+  justify-content:center;padding:4%;
+  border:1px solid #a98f63;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 1px 2px rgba(60,45,20,.18);
+  transition:filter .1s;
+}
+.bed-btn:hover{filter:brightness(.9)}
+.bed-btn.empty{
+  background:#c8ba9c;border:1.5px dashed #ad9f80;
+  align-items:center;justify-content:center;
+}
+.bed-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  background:rgba(250,246,236,.93);border-radius:7px;padding:2px 6px;
+  max-width:100%;overflow:hidden;
+}
+.bed-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.bed-name{font-size:10.5px;font-weight:700;color:#3a352b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.bed-empty-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  background:rgba(250,246,236,.7);border-radius:7px;padding:2px 7px;
+}
+.bed-empty-dot{width:7px;height:7px;border-radius:50%;background:#a89e84;flex-shrink:0}
+.bed-empty-name{font-size:10px;font-weight:700;color:#857c66}
+.warn-dot{
+  position:absolute;top:4px;right:4px;width:9px;height:9px;
+  border-radius:50%;box-shadow:0 0 0 2px rgba(255,255,255,.55);
+}
+
+/* ─── Legend ─── */
+.legend-wrap{display:flex;flex-wrap:wrap;gap:9px 14px;justify-content:center;padding:4px 4px 2px}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+.legend-name{font-size:10px;color:#8a8067;font-weight:600}
+.map-hint{text-align:center;font-size:10px;color:#b3aa92;margin-top:2px}
+
+/* ─── Banner ─── */
+.banner{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:#f1e7d2;border:1px solid #e4d6b6;border-radius:13px;
+  padding:9px 10px 9px 13px;
+}
+.banner-text{font-size:12px;font-weight:700;color:#7a5c2e}
+.btn-now{
+  background:var(--accent);color:#fff;border:none;border-radius:9px;
+  padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+
+/* ─── Compare tab ─── */
+.compare-head{display:flex;gap:8px;padding:2px 4px 6px}
+.compare-col-head{flex:1;text-align:center}
+.compare-col-label{font-size:11px;font-weight:700;color:var(--accent)}
+.compare-col-sub{font-size:10px;color:#a79e88;font-weight:600}
+.compare-col-label.past{color:#94865f}
+
+.compare-row{
+  background:#fbf8f0;border:1px solid #ece5d3;border-radius:14px;
+  padding:10px 11px 11px;margin-bottom:8px;
+}
+.compare-row-head{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;
+}
+.compare-row-label{font-size:11px;font-weight:700;color:#8a8067}
+.compare-flag{
+  font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;
+}
+.compare-cols{display:flex;gap:8px}
+.compare-cell{
+  flex:1;display:flex;flex-direction:column;gap:2px;align-items:center;
+  justify-content:center;padding:11px 6px;border-radius:11px;min-height:54px;
+}
+.compare-cell-name{font-family:'Shippori Mincho',serif;font-size:14px;font-weight:700}
+.compare-cell-name.empty{color:#9b9277;font-size:13px}
+.compare-cell-sub{font-size:9.5px;color:#8a8067;font-weight:600}
+.compare-hint{text-align:center;font-size:10px;color:#b3aa92;margin-top:4px}
+
+/* ─── Timeline tab ─── */
+.tl-card{
+  background:#fbf8f0;border:1px solid #ece5d3;border-radius:16px;
+  padding:12px 11px 13px;margin-bottom:12px;
+}
+.tl-head{display:grid;gap:6px;margin-bottom:7px}
+.tl-head-cell{
+  text-align:center;font-size:11px;font-weight:700;
+  padding:4px 0;border-radius:8px;color:#8a8067;
+}
+.tl-head-cell.active{background:var(--accent);color:#fff}
+.tl-row-grid{display:grid;gap:6px;align-items:stretch;margin-bottom:6px}
+.tl-row-label{
+  display:flex;align-items:center;
+  font-size:9.5px;font-weight:700;color:#8a8067;
+}
+.tl-cell{
+  padding:9px 3px;border-radius:9px;font-family:'Shippori Mincho',serif;
+  font-size:10.5px;font-weight:700;cursor:pointer;min-height:42px;
+  line-height:1.1;text-align:center;border:none;
+  display:flex;align-items:center;justify-content:center;
+  transition:filter .1s;
+}
+.tl-cell:hover{filter:brightness(.93)}
+.tl-cell.empty{
+  background:#f1ecdd;color:#b3aa92;font-size:12px;
+  border:1.5px dashed #cfc8b4;
+}
+.tl-cell.active-border{border-width:2px !important;border-style:solid !important}
+.tl-legend{display:flex;gap:11px;justify-content:center;flex-wrap:wrap;padding:2px 0}
+
+/* ─── Detail sheet (bottom drawer) ─── */
+.overlay{
+  position:absolute;inset:0;background:rgba(30,27,18,.44);z-index:30;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.overlay.show{opacity:1;pointer-events:auto}
+
+.detail-sheet{
+  position:absolute;left:0;right:0;bottom:0;z-index:31;
+  max-height:84%;background:#f6f2e8;border-radius:26px 26px 0 0;
+  box-shadow:0 -14px 44px rgba(30,27,18,.3);
+  display:flex;flex-direction:column;overflow:hidden;
+  transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);
+}
+.detail-sheet.show{transform:translateY(0)}
+.detail-handle{padding:11px 0 5px;display:flex;justify-content:center;flex-shrink:0}
+.detail-handle-bar{width:40px;height:4px;border-radius:2px;background:#d8d0bd}
+.detail-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 19px 32px;scrollbar-width:none}
+.detail-scroll::-webkit-scrollbar{display:none}
+
+.detail-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.detail-meta{font-size:10px;color:#a79e88;font-weight:700;letter-spacing:.03em;margin-bottom:3px}
+.detail-crop-name{font-family:'Shippori Mincho',serif;font-size:25px;font-weight:600;color:#2c2a22}
+.detail-tags{display:flex;gap:9px;align-items:center;margin-top:6px}
+.detail-fam-tag{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px}
+.detail-variety{font-size:11px;color:#8a8067;font-weight:600}
+.btn-close{
+  flex-shrink:0;width:36px;height:36px;border-radius:50%;border:none;
+  background:#ece5d3;color:#6b6655;font-size:14px;cursor:pointer;
+  touch-action:manipulation;position:relative;z-index:1;
+}
+
+.detail-body{display:flex;flex-direction:column;gap:13px;margin-top:15px}
+
+.detail-dates{
+  background:#fbf8f0;border:1px solid #ece5d3;border-radius:14px;padding:12px 13px;
+  font-size:11.5px;color:#6b6655;font-weight:600;
+}
+.progress-wrap{margin-top:10px}
+.progress-bar-bg{height:7px;border-radius:4px;background:#ece5d3;overflow:hidden}
+.progress-bar{height:100%;border-radius:4px;background:var(--accent);transition:width .3s}
+.progress-label{font-size:11px;color:var(--accent);font-weight:700;margin-top:6px}
+
+.rot-block{border-radius:14px;padding:12px 13px}
+.rot-head{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.rot-dot-lg{width:10px;height:10px;border-radius:50%}
+.rot-title{font-size:12px;font-weight:700;color:#33302a}
+.rot-msg{font-size:12px;color:#5a5446;line-height:1.55}
+
+.section-title{font-size:11px;font-weight:700;color:#8a8067;margin-bottom:7px}
+.history-cells{display:flex;gap:7px}
+.history-cell{
+  flex:1;text-align:center;padding:9px 4px;border-radius:11px;
+}
+.history-year{font-size:10px;color:#a79e88;margin-bottom:4px;font-weight:600}
+.history-name{font-family:'Shippori Mincho',serif;font-size:12.5px;font-weight:700}
+
+.log-list{display:flex;flex-direction:column}
+.log-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #ece5d3}
+.log-when{font-size:11px;color:#a79e88;width:50px;flex-shrink:0;font-weight:600}
+.log-task{font-size:11px;color:#6b6655;font-weight:700;white-space:nowrap}
+.log-note{font-size:12px;color:#4a4639;flex:1}
+
+.detail-empty-msg{
+  background:#fbf8f0;border:1px solid #ece5d3;border-radius:14px;
+  padding:13px 14px;font-size:12px;color:#5a5446;line-height:1.6;
+}
+.detail-rec-block{border-radius:14px;padding:12px 13px;border:1px solid rgba(93,138,85,.4);background:#e3ecdc}
+.detail-rec-title{font-size:12px;font-weight:700;color:#33302a;margin-bottom:5px}
+.detail-rec-msg{font-size:12px;color:#4a4639;line-height:1.55}
+
+.btn-primary{
+  width:100%;padding:13px;border-radius:12px;border:none;
+  background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;
+  font-family:inherit;
+}
+.btn-secondary{
+  flex:1;padding:12px;border-radius:12px;border:1px solid #ddd4bf;
+  background:#fbf8f0;color:#6b6655;font-size:13px;font-weight:700;
+  cursor:pointer;font-family:inherit;
+}
+.btn-row{display:flex;gap:9px;margin-top:2px}
+
+.crop-divider{height:1px;background:#e6dfcd;margin:4px 0}
+.crop-section-head{margin-bottom:6px}
+.crop-section-name{
+  font-family:'Shippori Mincho',serif;font-size:15px;font-weight:700;margin-bottom:4px;
+}
+.detail-mix-label{font-size:11px;color:#a79e88;font-weight:600;margin-top:2px}
+
+/* ── 記録フォーム ─────────────────────────────────── */
+.log-form{display:flex;flex-direction:column;gap:16px}
+.log-form-back{
+  display:flex;align-items:center;gap:6px;background:none;border:none;
+  color:#8a8067;font-size:13px;font-weight:700;cursor:pointer;padding:0;font-family:inherit;
+}
+.log-form-title{font-size:16px;font-weight:700;color:#33302a;margin-top:2px}
+.form-label{font-size:11px;font-weight:700;color:#8a8067;margin-bottom:6px}
+.task-chips{display:flex;flex-wrap:wrap;gap:7px}
+.task-chip{
+  padding:7px 13px;border-radius:20px;border:1.5px solid #e6dfcd;
+  background:#fbf8f0;font-size:12px;font-weight:700;color:#7a7060;
+  cursor:pointer;font-family:inherit;transition:all .15s;
+}
+.task-chip.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+.crop-select-chips{display:flex;flex-wrap:wrap;gap:7px}
+.crop-sel-chip{
+  padding:6px 12px;border-radius:20px;border:1.5px solid #e6dfcd;
+  background:#fbf8f0;font-size:12px;font-weight:700;cursor:pointer;
+  font-family:inherit;transition:all .15s;
+}
+.crop-sel-chip.selected{color:#fff;border-color:transparent}
+.log-date-input{
+  width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e6dfcd;
+  background:#fbf8f0;font-size:13px;color:#33302a;font-family:inherit;
+  box-sizing:border-box;
+}
+.log-note-input{
+  width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e6dfcd;
+  background:#fbf8f0;font-size:13px;color:#33302a;font-family:inherit;
+  resize:none;min-height:72px;box-sizing:border-box;
+}
+.log-date-input:focus,.log-note-input:focus{
+  outline:none;border-color:var(--accent);
+}
+.log-submit{
+  width:100%;padding:13px;border-radius:12px;border:none;
+  background:var(--accent);color:#fff;font-size:13px;font-weight:700;
+  cursor:pointer;font-family:inherit;
+}
+.log-submit:disabled{opacity:.5;cursor:not-allowed}
+.log-success{
+  text-align:center;padding:20px 0;font-size:14px;
+  color:var(--accent);font-weight:700;
+}
+
+/* ── 収穫・撤去フォーム ──────────────────────────────── */
+.harvest-row{display:flex;justify-content:flex-end;margin-top:6px}
+.btn-harvest{
+  background:none;border:1px solid #d4a090;border-radius:8px;
+  color:#b3564a;font-size:11.5px;font-weight:700;padding:5px 11px;
+  cursor:pointer;font-family:inherit;transition:opacity .1s;
+}
+.harvest-form{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 12px;background:#fdf5f3;border-radius:10px;
+  border:1px solid #e8c4ba;margin-top:8px;
+}
+.harvest-form-label{font-size:11px;font-weight:700;color:#b3564a;white-space:nowrap}
+.harvest-date-input{
+  flex:1;min-width:130px;padding:7px 10px;border-radius:8px;
+  border:1.5px solid #e8c4ba;background:#fff;
+  font-size:13px;font-family:inherit;color:#33302a;
+}
+.harvest-date-input:focus{outline:none;border-color:#b3564a}
+.btn-harvest-confirm{
+  padding:7px 14px;border-radius:8px;border:none;
+  background:#b3564a;color:#fff;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:inherit;white-space:nowrap;
+}
+.btn-harvest-confirm:disabled{opacity:.5;cursor:not-allowed}
+.btn-harvest-cancel{
+  background:none;border:none;color:#a79e88;font-size:12px;
+  cursor:pointer;font-family:inherit;padding:4px;white-space:nowrap;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="app-logo">
+      <div class="app-logo-icon"><div class="app-logo-leaf"></div></div>
+      <span class="app-logo-name">菜園手帖</span>
+    </div>
+    <div class="app-date-block">
+      <div class="app-date-label">きょう</div>
+      <div class="app-date-val" id="todayLabel"></div>
+    </div>
+  </header>
+
+  <!-- Year scrubber -->
+  <div class="scrub-wrap">
+    <div class="scrub-caption">
+      <span class="scrub-caption-text" id="scrubCaption">記録を見る年</span>
+      <span class="scrub-caption-sub" id="scrubSub"></span>
+    </div>
+    <div class="year-chips" id="yearChips"></div>
+  </div>
+
+  <!-- Date chips (garden tab only) -->
+  <div class="date-chips-wrap" id="dateChipsWrap" style="display:none">
+    <span class="date-chips-label">日付</span>
+    <div class="date-chips" id="dateChips"></div>
+  </div>
+
+  <!-- Main content -->
+  <div class="tab-body" id="tabBody">
+    <div class="area-tabs" id="areaTabs"></div>
+    <div id="tabContent"></div>
+  </div>
+
+  <!-- Bottom tabs -->
+  <nav class="bottom-tabs">
+    <button class="tab-btn active" data-tab="garden" id="tabBtnGarden">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+        <rect x="3" y="3" width="8" height="18" rx="2"/>
+        <rect x="13" y="3" width="8" height="8" rx="2"/>
+        <rect x="13" y="13" width="8" height="8" rx="2"/>
+      </svg>
+      <span class="tab-btn-label">畑</span>
+    </button>
+    <button class="tab-btn" data-tab="compare" id="tabBtnCompare">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+        <rect x="3" y="4" width="7" height="16" rx="2"/>
+        <rect x="14" y="4" width="7" height="16" rx="2"/>
+      </svg>
+      <span class="tab-btn-label">比較</span>
+    </button>
+    <button class="tab-btn" data-tab="timeline" id="tabBtnTimeline">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+        <line x1="4" y1="7" x2="20" y2="7"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <line x1="4" y1="17" x2="20" y2="17"/>
+        <circle cx="8" cy="7" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="15" cy="12" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="11" cy="17" r="1.6" fill="currentColor" stroke="none"/>
+      </svg>
+      <span class="tab-btn-label">年表</span>
+    </button>
+  </nav>
+
+  <!-- Overlay + detail sheet -->
+  <div class="overlay" id="overlay"></div>
+  <div class="detail-sheet" id="detailSheet">
+    <div class="detail-handle"><div class="detail-handle-bar"></div></div>
+    <div class="detail-scroll" id="detailContent"></div>
+  </div>
+
+</div>
+
+<script type="application/json" id="appData">
+{"areas":[{% for a in areas %}{% if not forloop.first %},{% endif %}{"id":{{a.id}},"name":"{{a.name|escapejs}}","rows":{{a.rows}},"cols":{{a.cols}}}{% endfor %}],"today":"{{ today }}","currentYear":{{ current_year }},"csrf":"{{ csrf_token }}"}
+</script>
+<script>
+const _d         = JSON.parse(document.getElementById('appData').textContent);
+const AREAS      = _d.areas;
+const TODAY      = _d.today;
+const TODAY_YEAR = _d.currentYear;
+const CSRF       = _d.csrf;
+const API_STATE  = id  => `/garden2/api/area/${id}/state/`;
+const API_DATES  = id  => `/garden2/api/area/${id}/dates/`;
+const API_DETAIL = id  => `/garden2/api/bed/${id}/detail/`;
+const API_LOG     = id  => `/garden2/api/bed/${id}/log/`;
+const API_HARVEST = id  => `/garden2/api/crop/${id}/harvest/`;
+
+// ── App state ──────────────────────────────────────────
+let S = {
+  tab:    'garden',
+  year:   TODAY_YEAR,
+  date:   TODAY,       // 畑タブ用の選択日付（YYYY-MM-DD）
+  areaId: AREAS[0]?.id,
+};
+
+// ── Rotation level → colors ────────────────────────────
+const ROT_COLOR = {
+  high: {c:'#b3564a', bg:'#f2dfd9'},
+  mid:  {c:'#c0883a', bg:'#f2e7cf'},
+  low:  {c:'#9a8f5e', bg:'#ece7d2'},
+  ok:   {c:'#5d8a55', bg:'#e3ecdc'},
+  none: {c:'#a79e88', bg:'#f0ece0'},
+};
+
+// ── Init ───────────────────────────────────────────────
+function init() {
+  const todayD = new Date(TODAY + 'T00:00:00');
+  document.getElementById('todayLabel').textContent =
+    `${todayD.getFullYear()}.${todayD.getMonth()+1}.${todayD.getDate()}`;
+  buildAreaTabs();
+  document.querySelectorAll('.tab-btn').forEach(btn =>
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab))
+  );
+  document.getElementById('overlay').addEventListener('click', closeDetail);
+  loadGardenTab();
+}
+
+// ── Area tabs ──────────────────────────────────────────
+function buildAreaTabs() {
+  const wrap = document.getElementById('areaTabs');
+  wrap.innerHTML = '';
+  if (AREAS.length <= 1) { wrap.style.display = 'none'; return; }
+  AREAS.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'area-tab' + (a.id === S.areaId ? ' active' : '');
+    btn.textContent = a.name;
+    btn.addEventListener('click', () => {
+      closeDetail();
+      markNav();
+      S.areaId = a.id;
+      document.querySelectorAll('.area-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (S.tab === 'garden') loadGardenTab();
+      else if (S.tab === 'compare') loadCompare();
+      else loadTimeline();
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+// ── Year chips ─────────────────────────────────────────
+function buildYearChips(years) {
+  const wrap = document.getElementById('yearChips');
+  wrap.innerHTML = '';
+  const activeYear = S.tab === 'compare' ? compareYear() : S.year;
+  years.forEach(y => {
+    const isNow = y === TODAY_YEAR;
+    const active = y === activeYear;
+    const btn = document.createElement('button');
+    btn.className = 'year-chip' + (active ? (isNow ? ' active' : ' active-past') : '');
+    btn.innerHTML = `<span class="year-chip-year">${y}</span><span class="year-chip-tag">${isNow ? '今' : '記録'}</span>`;
+    btn.addEventListener('click', () => selectYear(y));
+    wrap.appendChild(btn);
+  });
+}
+
+function updateScrubCaption() {
+  const captions = {garden:'記録を見る年', compare:'比較する過去の年', timeline:'注目する年'};
+  document.getElementById('scrubCaption').textContent = captions[S.tab] || '';
+  const d = new Date(TODAY + 'T00:00:00');
+  document.getElementById('scrubSub').textContent = `${d.getMonth()+1}月`;
+}
+
+function selectYear(y) {
+  closeDetail();
+  markNav();
+  S.year = y;
+  if (S.tab === 'compare') {
+    loadCompare();
+  } else if (S.tab === 'timeline') {
+    loadTimeline();
+  } else {
+    loadGardenTab();
+  }
+}
+
+function compareYear() {
+  return S.year === TODAY_YEAR ? TODAY_YEAR - 1 : S.year;
+}
+
+// ── Date chips (畑タブ専用) ───────────────────────────
+async function loadDates(year) {
+  const res  = await fetch(`${API_DATES(S.areaId)}?year=${year}`);
+  const data = await res.json();
+  S.date = data.default;  // デフォルト日付をセット
+  buildDateChips(data.dates, data.default);
+  return data.default;
+}
+
+function buildDateChips(dates, selected) {
+  const wrap = document.getElementById('dateChips');
+  wrap.innerHTML = '';
+  if (!dates.length) {
+    document.getElementById('dateChipsWrap').style.display = 'none';
+    return;
+  }
+  document.getElementById('dateChipsWrap').style.display = 'flex';
+
+  dates.forEach(entry => {
+    const dateStr  = entry.date;
+    const types    = entry.types || [];
+    const isToday  = dateStr === TODAY;
+    const isActive = dateStr === selected;
+    const btn = document.createElement('button');
+    btn.className = 'date-chip' + (isActive ? ' active' : '') + (isToday ? ' is-today' : '');
+    btn.dataset.date = dateStr;
+
+    const main = document.createElement('span');
+    main.textContent = isToday ? '今日' : fmtDateChip(dateStr);
+    btn.appendChild(main);
+
+    if (types.length) {
+      const LABELS = {bed:'畝', planted:'植付', harvested:'収穫'};
+      const tags = document.createElement('span');
+      tags.className = 'chip-tags';
+      types.forEach(t => {
+        if (!LABELS[t]) return;
+        const tag = document.createElement('span');
+        tag.className = `chip-tag ${t}`;
+        tag.textContent = LABELS[t];
+        tags.appendChild(tag);
+      });
+      if (tags.children.length) btn.appendChild(tags);
+    }
+
+    btn.addEventListener('click', () => selectDate(dateStr));
+    wrap.appendChild(btn);
+  });
+
+  // 選択チップが見えるようにスクロール
+  const activeChip = wrap.querySelector('.date-chip.active');
+  if (activeChip) activeChip.scrollIntoView({inline:'nearest', behavior:'instant'});
+}
+
+function fmtDateChip(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function selectDate(dateStr) {
+  S.date = dateStr;
+  // チップのアクティブ更新
+  document.querySelectorAll('.date-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.date === dateStr);
+  });
+  // 畑マップを再描画
+  loadGardenMap(dateStr);
+}
+
+// ── Tab switching ──────────────────────────────────────
+function switchTab(tab) {
+  closeDetail();
+  markNav();
+  S.tab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab)
+  );
+  updateScrubCaption();
+  // 日付チップは畑タブのみ表示
+  document.getElementById('dateChipsWrap').style.display = tab === 'garden' ? 'flex' : 'none';
+
+  if (tab === 'compare') {
+    if (S.year === TODAY_YEAR) S.year = TODAY_YEAR - 1;
+    loadCompare();
+  } else if (tab === 'timeline') {
+    S.year = TODAY_YEAR;
+    loadTimeline();
+  } else {
+    S.year = TODAY_YEAR;
+    loadGardenTab();
+  }
+}
+
+// ── Load: 畑タブ（年変更・エリア変更時） ──────────────
+async function loadGardenTab() {
+  // 日付チップを先に取得してデフォルト日付を決定し、それでマップを取得
+  const defaultDate = await loadDates(S.year);
+  await loadGardenMap(defaultDate);
+}
+
+// ── Load: 畑マップ（特定日付） ────────────────────────
+async function loadGardenMap(dateStr) {
+  closeDetail();
+  const res  = await fetch(`${API_STATE(S.areaId)}?date=${dateStr}`);
+  const data = await res.json();
+  buildYearChips(data.available_years);
+  updateScrubCaption();
+  renderGarden(data);
+}
+
+// ── Load compare ───────────────────────────────────────
+async function loadCompare() {
+  closeDetail();
+  const [resNow, resPast] = await Promise.all([
+    fetch(`${API_STATE(S.areaId)}?year=${TODAY_YEAR}`),
+    fetch(`${API_STATE(S.areaId)}?year=${compareYear()}`),
+  ]);
+  const now  = await resNow.json();
+  const past = await resPast.json();
+  buildYearChips(now.available_years);
+  updateScrubCaption();
+  renderCompare(now, past);
+}
+
+// ── Load timeline ──────────────────────────────────────
+async function loadTimeline() {
+  closeDetail();
+  const res   = await fetch(`${API_STATE(S.areaId)}?year=${TODAY_YEAR}`);
+  const first = await res.json();
+  const years = first.available_years;
+  const allData = await Promise.all(
+    years.map(y => fetch(`${API_STATE(S.areaId)}?year=${y}`).then(r => r.json()))
+  );
+  buildYearChips(years);
+  updateScrubCaption();
+  renderTimeline(years, allData);
+}
+
+// ══════════════════════════════════════════════════════
+// ── Render: Garden map ────────────────────────────────
+// ══════════════════════════════════════════════════════
+function renderGarden(data) {
+  const area = data.area;
+  const content = document.getElementById('tabContent');
+  content.innerHTML = '';
+
+  // Banner if past year
+  if (data.year !== TODAY_YEAR) {
+    const banner = document.createElement('div');
+    banner.className = 'banner';
+    banner.innerHTML = `
+      <span class="banner-text">${data.year}年ごろの記録を表示中</span>
+      <button class="btn-now" id="bannerNowBtn">今にもどる</button>`;
+    banner.style.marginBottom = '10px';
+    content.appendChild(banner);
+    banner.querySelector('#bannerNowBtn').addEventListener('click', () => {
+      S.year = TODAY_YEAR;
+      loadState();
+    });
+  }
+
+  // Title row
+  const titleRow = el('div', 'map-title-row');
+  titleRow.innerHTML = `<span class="map-title">${area.name}</span>`;
+  content.appendChild(titleRow);
+
+  // Map
+  const map = el('div', 'garden-map');
+  map.style.aspectRatio = `${area.cols} / ${area.rows}`;
+  map.style.marginBottom = '8px';
+  map.style.marginTop = '4px';
+
+  // 3m(30マス)ごとに濃淡ストライプ
+  const sp  = (30 / area.rows * 100).toFixed(4);   // 1ストライプの%
+  const sp2 = (30 / area.rows * 200).toFixed(4);   // 繰り返し幅の%
+  map.style.background =
+    `repeating-linear-gradient(to bottom,` +
+    `transparent 0%,transparent ${sp}%,` +
+    `rgba(0,0,0,0.05) ${sp}%,rgba(0,0,0,0.05) ${sp2}%),` +
+    `linear-gradient(to bottom,#d6cbb3,#cdc2a9)`;
+
+  const woodV = 'repeating-linear-gradient(90deg,#cdb083 0,#cdb083 4px,#bb9e6c 4px,#bb9e6c 5px)';
+  const woodH = 'repeating-linear-gradient(0deg,#cdb083 0,#cdb083 4px,#bb9e6c 4px,#bb9e6c 5px)';
+
+  data.beds.forEach(bed => {
+    const btn = el('button', bed.crop ? 'bed-btn' : 'bed-btn empty');
+    const left   = (bed.col_start / area.cols) * 100;
+    const top    = (bed.row_start / area.rows) * 100;
+    const width  = ((bed.col_end - bed.col_start + 1) / area.cols) * 100;
+    const height = ((bed.row_end - bed.row_start + 1) / area.rows) * 100;
+    btn.style.cssText = `left:${left}%;top:${top}%;width:${width}%;height:${height}%`;
+
+    if (bed.crop) {
+      const isV = (bed.row_end - bed.row_start) > (bed.col_end - bed.col_start);
+      btn.style.background = isV ? woodV : woodH;
+
+      const chip = el('span', 'bed-chip');
+      const dot  = el('span', 'bed-dot');
+      dot.style.background = bed.crop.family_color;
+      const name = el('span', 'bed-name');
+      name.textContent = bed.crop.name;
+      chip.appendChild(dot); chip.appendChild(name);
+      btn.appendChild(chip);
+
+      if (bed.rotation.level === 'high' || bed.rotation.level === 'mid') {
+        const wd = el('span', 'warn-dot');
+        wd.style.background = bed.rotation.level === 'high' ? '#b3564a' : '#c0883a';
+        btn.appendChild(wd);
+      }
+    } else {
+      const chip = el('span', 'bed-empty-chip');
+      const dot  = el('span', 'bed-empty-dot');
+      const name = el('span', 'bed-empty-name');
+      name.textContent = '空き';
+      chip.appendChild(dot); chip.appendChild(name);
+      btn.appendChild(chip);
+    }
+
+    btn.addEventListener('click', () => openDetail(bed.id, S.date));
+    map.appendChild(btn);
+  });
+
+  content.appendChild(map);
+
+  // Legend
+  const families = [...new Set(
+    data.beds.filter(b => b.crop).map(b => ({name: b.crop.family, color: b.crop.family_color}))
+      .map(f => JSON.stringify(f))
+  )].map(s => JSON.parse(s));
+
+  if (families.length) {
+    const legend = el('div', 'legend-wrap');
+    families.forEach(f => {
+      const item = el('div', 'legend-item');
+      const dot  = el('span', 'legend-dot');
+      dot.style.background = f.color;
+      const name = el('span', 'legend-name');
+      name.textContent = f.name;
+      item.appendChild(dot); item.appendChild(name);
+      legend.appendChild(item);
+    });
+    content.appendChild(legend);
+  }
+
+  const hint = el('div', 'map-hint');
+  hint.textContent = '畝をタップで作物の記録・連作チェックを表示';
+  content.appendChild(hint);
+}
+
+// ══════════════════════════════════════════════════════
+// ── Render: Compare ───────────────────────────────────
+// ══════════════════════════════════════════════════════
+function renderCompare(now, past) {
+  const content = document.getElementById('tabContent');
+  content.innerHTML = '';
+
+  const head = el('div', 'compare-head');
+  head.innerHTML = `
+    <div class="compare-col-head">
+      <div class="compare-col-label">今</div>
+      <div class="compare-col-sub">${TODAY_YEAR}年</div>
+    </div>
+    <div class="compare-col-head">
+      <div class="compare-col-label past">過去の同時期</div>
+      <div class="compare-col-sub">${compareYear()}年</div>
+    </div>`;
+  content.appendChild(head);
+
+  // Build a map from bed id → crop for now and past
+  const nowMap  = Object.fromEntries(now.beds.map(b => [b.id, b]));
+  const pastMap = Object.fromEntries(past.beds.map(b => [b.id, b]));
+  const allBedIds = [...new Set([...now.beds.map(b=>b.id), ...past.beds.map(b=>b.id)])];
+
+  allBedIds.forEach(id => {
+    const nb = nowMap[id];
+    const pb = pastMap[id];
+    const bedName = (nb || pb).name;
+    const rot  = nb?.rotation || {level:'none'};
+    const rc   = ROT_COLOR[rot.level] || ROT_COLOR.none;
+    const flagLabels = {high:'連作注意', mid:'2年連続', low:'やや注意'};
+
+    const row  = el('div', 'compare-row');
+    const rowHead = el('div', 'compare-row-head');
+    const lbl  = el('span', 'compare-row-label');
+    lbl.textContent = bedName;
+    rowHead.appendChild(lbl);
+    if (rot.level === 'high' || rot.level === 'mid' || rot.level === 'low') {
+      const flag = el('span', 'compare-flag');
+      flag.textContent = flagLabels[rot.level];
+      flag.style.cssText = `background:${rc.bg};color:${rc.c}`;
+      rowHead.appendChild(flag);
+    }
+    row.appendChild(rowHead);
+
+    const cols = el('div', 'compare-cols');
+    [['now', nb?.crop], ['past', pb?.crop]].forEach(([side, crop]) => {
+      const cell = el('div', 'compare-cell');
+      if (crop) {
+        cell.style.cssText = `background:${crop.family_tint};border:1px solid ${crop.family_color}40`;
+        const name = el('span', 'compare-cell-name');
+        name.style.color = crop.family_color;
+        name.textContent = crop.name;
+        const sub = el('span', 'compare-cell-sub');
+        sub.textContent = crop.family;
+        cell.appendChild(name); cell.appendChild(sub);
+      } else {
+        cell.style.cssText = 'background:#f1ecdd;border:1.5px dashed #cfc8b4';
+        const name = el('span', 'compare-cell-name empty');
+        name.textContent = '空き';
+        const sub = el('span', 'compare-cell-sub');
+        sub.textContent = side === 'past' ? '未記録' : '';
+        cell.appendChild(name); cell.appendChild(sub);
+      }
+      cols.appendChild(cell);
+    });
+    row.appendChild(cols);
+    content.appendChild(row);
+  });
+
+  const hint = el('div', 'compare-hint');
+  hint.textContent = '上の年スクラバーで比較する年を切り替え';
+  content.appendChild(hint);
+}
+
+// ══════════════════════════════════════════════════════
+// ── Render: Timeline ──────────────────────────────────
+// ══════════════════════════════════════════════════════
+function renderTimeline(years, allData) {
+  const content = document.getElementById('tabContent');
+  content.innerHTML = '';
+
+  const card = el('div', 'tl-card');
+  const cols = years.length;
+
+  // Head row
+  const head = el('div', 'tl-head');
+  head.style.gridTemplateColumns = `30px ${years.map(() => '1fr').join(' ')}`;
+  const empty = el('div'); head.appendChild(empty);
+  years.forEach((y, i) => {
+    const cell = el('div', 'tl-head-cell' + (y === S.year ? ' active' : ''));
+    cell.textContent = String(y);
+    head.appendChild(cell);
+  });
+  card.appendChild(head);
+
+  // Collect all bed ids in order (from first year's data or sorted)
+  const bedOrder = allData[allData.length - 1]?.beds.map(b => b.id) || [];
+  const bedNames = {};
+  allData.forEach(d => d.beds.forEach(b => { bedNames[b.id] = b.name; }));
+  // Merge any bed ids not in latest year
+  allData.forEach(d => d.beds.forEach(b => {
+    if (!bedOrder.includes(b.id)) bedOrder.push(b.id);
+  }));
+
+  // Build cropMap: bedId → year → crop
+  const cropMap = {};
+  allData.forEach((d, i) => {
+    const y = years[i];
+    d.beds.forEach(b => {
+      if (!cropMap[b.id]) cropMap[b.id] = {};
+      cropMap[b.id][y] = b.crop;
+    });
+  });
+
+  bedOrder.forEach(bedId => {
+    const row = el('div', 'tl-row-grid');
+    row.style.gridTemplateColumns = `30px ${years.map(() => '1fr').join(' ')}`;
+    const label = el('div', 'tl-row-label');
+    label.textContent = bedNames[bedId] || '';
+    row.appendChild(label);
+
+    years.forEach((y, i) => {
+      const crop = cropMap[bedId]?.[y];
+      const isActiveYear = y === S.year;
+      const btn = el('button', 'tl-cell' + (crop ? '' : ' empty'));
+      btn.textContent = crop ? crop.name : '—';
+      if (crop) {
+        btn.style.cssText = `background:${crop.family_tint};color:${crop.family_color}`;
+        if (isActiveYear) {
+          btn.style.border = `2px solid var(--accent)`;
+        } else {
+          btn.style.border = `1px solid ${crop.family_color}40`;
+        }
+      } else if (isActiveYear) {
+        btn.classList.add('active-border');
+        btn.style.borderColor = 'var(--accent)';
+      }
+      btn.addEventListener('click', () => {
+        S.year = y;
+        const detailDate = (y === TODAY_YEAR) ? TODAY : `${y}-12-31`;
+        openDetail(bedId, detailDate);
+      });
+      row.appendChild(btn);
+    });
+    card.appendChild(row);
+  });
+
+  content.appendChild(card);
+
+  // Legend
+  const famSet = {};
+  allData.forEach(d => d.beds.forEach(b => {
+    if (b.crop) famSet[b.crop.family] = b.crop.family_color;
+  }));
+  if (Object.keys(famSet).length) {
+    const legend = el('div', 'tl-legend');
+    Object.entries(famSet).slice(0, 8).forEach(([name, color]) => {
+      const item = el('div', 'legend-item');
+      const dot  = el('span', 'legend-dot');
+      dot.style.background = color;
+      const lbl  = el('span', 'legend-name');
+      lbl.textContent = name;
+      item.appendChild(dot); item.appendChild(lbl);
+      legend.appendChild(item);
+    });
+    content.appendChild(legend);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// ── Detail sheet ──────────────────────────────────────
+// ══════════════════════════════════════════════════════
+// ナビ操作後のゴーストクリック対策
+let _navTs = 0;
+function markNav() { _navTs = Date.now(); }
+
+// 「今にもどる」バナーボタン用
+function loadState() {
+  closeDetail();
+  markNav();
+  loadGardenTab();
+}
+
+async function openDetail(bedId, dateStr) {
+  if (Date.now() - _navTs < 500) return;  // ナビ直後のゴーストクリックを無視
+  const res  = await fetch(`${API_DETAIL(bedId)}?date=${dateStr}`);
+  const data = await res.json();
+  renderDetail(data);
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('detailSheet').classList.add('show');
+}
+
+function closeDetail() {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('detailSheet').classList.remove('show');
+}
+
+function renderCropSection(crop, bedId, dateStr) {
+  const section = el('div', 'crop-section');
+  // 作物ヘッダー
+  const head = el('div', 'crop-section-head');
+  const cn = el('div', 'crop-section-name');
+  cn.textContent = crop.name;
+  cn.style.color = crop.family_color;
+  head.appendChild(cn);
+  const tags = el('div', 'detail-tags');
+  const famTag = el('span', 'detail-fam-tag');
+  famTag.textContent = crop.family;
+  famTag.style.cssText = `color:${crop.family_color};background:${crop.family_tint}`;
+  tags.appendChild(famTag);
+  if (crop.variety) {
+    const vt = el('span', 'detail-variety');
+    vt.textContent = `品種：${crop.variety}`;
+    tags.appendChild(vt);
+  }
+  head.appendChild(tags);
+  section.appendChild(head);
+  // 日付・進捗
+  const dateBlock = el('div', 'detail-dates');
+  const harv = crop.expected_harvest_date
+    ? `収穫予定 ${crop.expected_harvest_date}`
+    : (crop.harvested_at ? `収穫済 ${crop.harvested_at}` : '収穫日未定');
+  dateBlock.textContent = `植え付け ${crop.planted_at}　／　${harv}`;
+  if (crop.progress) {
+    const pw = el('div', 'progress-wrap');
+    const bg = el('div', 'progress-bar-bg');
+    const bar = el('div', 'progress-bar');
+    bar.style.width = `${crop.progress.pct}%`;
+    bg.appendChild(bar);
+    const lbl = el('div', 'progress-label');
+    lbl.textContent = crop.progress.label;
+    pw.appendChild(bg); pw.appendChild(lbl);
+    dateBlock.appendChild(pw);
+  }
+  section.appendChild(dateBlock);
+  // 連作チェック
+  const rot = crop.rotation;
+  if (rot && rot.level !== 'none') {
+    const rc = ROT_COLOR[rot.level] || ROT_COLOR.none;
+    const rotBlock = el('div', 'rot-block');
+    rotBlock.style.cssText = `background:${rc.bg};border:1px solid ${rc.c}40`;
+    const rotHead = el('div', 'rot-head');
+    const rotDot = el('span', 'rot-dot-lg');
+    rotDot.style.background = rc.c;
+    const rotTitle = el('span', 'rot-title');
+    rotTitle.textContent = '連作チェック';
+    rotHead.appendChild(rotDot); rotHead.appendChild(rotTitle);
+    const rotMsg = el('div', 'rot-msg');
+    rotMsg.textContent = rot.msg;
+    rotBlock.appendChild(rotHead); rotBlock.appendChild(rotMsg);
+    section.appendChild(rotBlock);
+  }
+
+  // 収穫・撤去ボタン
+  const harvestRow = el('div', 'harvest-row');
+  const harvestBtn = el('button', 'btn-harvest');
+  harvestBtn.textContent = '収穫・撤去';
+  harvestBtn.addEventListener('click', () => {
+    harvestBtn.style.display = 'none';
+    const form = el('div', 'harvest-form');
+    const lbl = el('span', 'harvest-form-label');
+    lbl.textContent = '収穫日・撤去日';
+    const dateInput = el('input');
+    dateInput.type = 'date';
+    dateInput.className = 'harvest-date-input';
+    dateInput.value = TODAY;
+    dateInput.max = TODAY;
+    const confirmBtn = el('button', 'btn-harvest-confirm');
+    confirmBtn.textContent = '確定';
+    confirmBtn.addEventListener('click', async () => {
+      confirmBtn.disabled = true;
+      try {
+        const res = await fetch(API_HARVEST(crop.id), {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+          body: JSON.stringify({harvested_at: dateInput.value}),
+        });
+        if (!res.ok) throw new Error();
+        await openDetail(bedId, dateStr);
+      } catch {
+        confirmBtn.disabled = false;
+        alert('保存に失敗しました。');
+      }
+    });
+    const cancelBtn = el('button', 'btn-harvest-cancel');
+    cancelBtn.textContent = 'キャンセル';
+    cancelBtn.addEventListener('click', () => {
+      form.remove();
+      harvestBtn.style.display = '';
+    });
+    form.appendChild(lbl);
+    form.appendChild(dateInput);
+    form.appendChild(confirmBtn);
+    form.appendChild(cancelBtn);
+    harvestRow.appendChild(form);
+  });
+  harvestRow.appendChild(harvestBtn);
+  section.appendChild(harvestRow);
+
+  return section;
+}
+
+function renderDetail(data) {
+  const crops = data.crops || [];
+  const c     = document.getElementById('detailContent');
+  c.innerHTML = '';
+
+  // ── ヘッダー ───────────────────────────────────────────
+  const top = el('div', 'detail-top');
+  const left = el('div');
+
+  const meta = el('div', 'detail-meta');
+  meta.textContent = `${data.bed.name} ・ ${data.year}年`;
+  left.appendChild(meta);
+
+  const titleEl = el('div', 'detail-crop-name');
+  if (crops.length === 0) {
+    titleEl.textContent = '空き畝';
+  } else if (crops.length === 1) {
+    titleEl.textContent = crops[0].name;
+    // 1作物なら科タグをヘッダーに表示
+    const tags = el('div', 'detail-tags');
+    const famTag = el('span', 'detail-fam-tag');
+    famTag.textContent = crops[0].family;
+    famTag.style.cssText = `color:${crops[0].family_color};background:${crops[0].family_tint}`;
+    tags.appendChild(famTag);
+    if (crops[0].variety) {
+      const vt = el('span', 'detail-variety');
+      vt.textContent = `品種：${crops[0].variety}`;
+      tags.appendChild(vt);
+    }
+    left.appendChild(titleEl);
+    left.appendChild(tags);
+  } else {
+    titleEl.textContent = crops.map(cr => cr.name).join('・');
+    const mix = el('div', 'detail-mix-label');
+    mix.textContent = `${crops.length}種混植`;
+    left.appendChild(titleEl);
+    left.appendChild(mix);
+  }
+
+  if (crops.length === 0) left.appendChild(titleEl);
+
+  const closeBtn = el('button', 'btn-close');
+  closeBtn.textContent = '✕';
+  closeBtn.addEventListener('click', closeDetail);
+  top.appendChild(left); top.appendChild(closeBtn);
+  c.appendChild(top);
+
+  // ── ボディ ─────────────────────────────────────────────
+  const body = el('div', 'detail-body');
+
+  if (crops.length === 0) {
+    const emsg = el('div', 'detail-empty-msg');
+    emsg.textContent = 'この畝は記録がありません。最初の作付けを登録できます。';
+    body.appendChild(emsg);
+  } else {
+    crops.forEach((crop, idx) => {
+      if (idx > 0) body.appendChild(el('div', 'crop-divider'));
+      body.appendChild(renderCropSection(crop, data.bed.id, data.date));
+    });
+  }
+
+  // 履歴
+  if (data.history && data.history.length) {
+    const histSec = el('div');
+    const histTitle = el('div', 'section-title');
+    histTitle.textContent = 'この畝の履歴';
+    const histCells = el('div', 'history-cells');
+    data.history.forEach(h => {
+      const cell = el('div', 'history-cell');
+      if (h.family_color) {
+        cell.style.cssText = `background:${h.family_tint};border:${h.is_current ? `2px solid var(--accent)` : `1px solid ${h.family_color}40`}`;
+      } else {
+        cell.style.cssText = `background:#f1ecdd;border:${h.is_current ? '2px solid var(--accent)' : '1.5px dashed #cfc8b4'}`;
+      }
+      const yr = el('div', 'history-year');
+      yr.textContent = `${h.year}年`;
+      const nm = el('div', 'history-name');
+      nm.textContent = h.crop_name || '空き';
+      nm.style.color = h.family_color || '#a89e84';
+      cell.appendChild(yr); cell.appendChild(nm);
+      histCells.appendChild(cell);
+    });
+    histSec.appendChild(histTitle); histSec.appendChild(histCells);
+    body.appendChild(histSec);
+  }
+
+  // 記録ログ
+  if (data.logs && data.logs.length) {
+    const logSec = el('div');
+    const logTitle = el('div', 'section-title');
+    logTitle.textContent = 'さいきんの記録';
+    const logList = el('div', 'log-list');
+    data.logs.forEach(lg => {
+      const row = el('div', 'log-row');
+      const when = el('span', 'log-when');
+      when.textContent = lg.when;
+      const task = el('span', 'log-task');
+      task.textContent = lg.task;
+      const note = el('span', 'log-note');
+      note.textContent = lg.note;
+      row.appendChild(when); row.appendChild(task); row.appendChild(note);
+      logList.appendChild(row);
+    });
+    logSec.appendChild(logTitle); logSec.appendChild(logList);
+    body.appendChild(logSec);
+  }
+
+  // ボタン
+  if (crops.length > 0) {
+    const btnRow = el('div', 'btn-row');
+    const addBtn = el('button', 'btn-secondary');
+    addBtn.textContent = '記録を追加';
+    addBtn.addEventListener('click', () => openLogForm(data.bed.id, data.crops, data.date));
+    btnRow.appendChild(addBtn);
+    body.appendChild(btnRow);
+  } else {
+    const plantBtn = el('button', 'btn-primary');
+    plantBtn.textContent = 'この畝に植える';
+    body.appendChild(plantBtn);
+  }
+
+  c.appendChild(body);
+}
+
+// ══════════════════════════════════════════════════════
+// ── Log form ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+let _lastDetailBedId  = null;
+let _lastDetailDate   = null;
+
+const TASK_LABELS = {
+  watering:    '水やり',
+  fertilizing: '追肥',
+  weeding:     '除草',
+  pruning:     '芽かき・間引き',
+  pest_control:'防虫・消毒',
+  harvesting:  '収穫',
+  other:       'その他',
+};
+
+function openLogForm(bedId, crops, dateStr) {
+  _lastDetailBedId = bedId;
+  _lastDetailDate  = dateStr;
+  const c = document.getElementById('detailContent');
+  c.innerHTML = '';
+
+  const form = el('div', 'log-form');
+
+  // 戻るボタン
+  const back = el('button', 'log-form-back');
+  back.innerHTML = '&#8592; 詳細に戻る';
+  back.addEventListener('click', () => openDetail(bedId, dateStr));
+  form.appendChild(back);
+
+  const title = el('div', 'log-form-title');
+  title.textContent = '記録を追加';
+  form.appendChild(title);
+
+  // 作業種類
+  let selectedTask = 'watering';
+  const taskSec = el('div');
+  const taskLabel = el('div', 'form-label');
+  taskLabel.textContent = '作業内容';
+  const taskChips = el('div', 'task-chips');
+  Object.entries(TASK_LABELS).forEach(([val, label]) => {
+    const chip = el('button', 'task-chip' + (val === selectedTask ? ' selected' : ''));
+    chip.textContent = label;
+    chip.type = 'button';
+    chip.addEventListener('click', () => {
+      selectedTask = val;
+      taskChips.querySelectorAll('.task-chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+    });
+    taskChips.appendChild(chip);
+  });
+  taskSec.appendChild(taskLabel);
+  taskSec.appendChild(taskChips);
+  form.appendChild(taskSec);
+
+  // 対象作物（複数作物がある場合のみ）
+  let selectedCropId = crops.length === 1 ? crops[0].id : null;
+  if (crops.length > 1) {
+    const cropSec = el('div');
+    const cropLabel = el('div', 'form-label');
+    cropLabel.textContent = '対象の作物';
+    const cropChips = el('div', 'crop-select-chips');
+
+    // 「全体」チップ
+    const allChip = el('button', 'crop-sel-chip' + (selectedCropId === null ? ' selected' : ''));
+    allChip.textContent = '畝全体';
+    allChip.type = 'button';
+    allChip.style.cssText = 'background:#ece7d2;color:#6b6655';
+    allChip.addEventListener('click', () => {
+      selectedCropId = null;
+      cropChips.querySelectorAll('.crop-sel-chip').forEach(c => {
+        c.classList.remove('selected');
+        c.style.background = '';
+      });
+      allChip.classList.add('selected');
+      allChip.style.background = '#ece7d2';
+    });
+    cropChips.appendChild(allChip);
+
+    crops.forEach(crop => {
+      const chip = el('button', 'crop-sel-chip');
+      chip.textContent = crop.name;
+      chip.type = 'button';
+      chip.addEventListener('click', () => {
+        selectedCropId = crop.id;
+        cropChips.querySelectorAll('.crop-sel-chip').forEach(c => {
+          c.classList.remove('selected');
+          c.style.background = '';
+          c.style.color = '';
+        });
+        chip.classList.add('selected');
+        chip.style.cssText = `background:${crop.family_color};color:#fff;border-color:${crop.family_color}`;
+      });
+      cropChips.appendChild(chip);
+    });
+
+    cropSec.appendChild(cropLabel);
+    cropSec.appendChild(cropChips);
+    form.appendChild(cropSec);
+  }
+
+  // 作業日
+  const dateSec = el('div');
+  const dateLabel = el('div', 'form-label');
+  dateLabel.textContent = '作業日';
+  const dateInput = el('input');
+  dateInput.type = 'date';
+  dateInput.className = 'log-date-input';
+  dateInput.value = (dateStr && dateStr <= TODAY) ? dateStr : TODAY;
+  dateSec.appendChild(dateLabel);
+  dateSec.appendChild(dateInput);
+  form.appendChild(dateSec);
+
+  // メモ
+  const noteSec = el('div');
+  const noteLabel = el('div', 'form-label');
+  noteLabel.textContent = 'メモ（任意）';
+  const noteInput = document.createElement('textarea');
+  noteInput.className = 'log-note-input';
+  noteInput.placeholder = '気づいたこと、病害虫の状況など';
+  noteSec.appendChild(noteLabel);
+  noteSec.appendChild(noteInput);
+  form.appendChild(noteSec);
+
+  // 送信ボタン
+  const submitBtn = el('button', 'log-submit');
+  submitBtn.textContent = '記録する';
+  submitBtn.type = 'button';
+  submitBtn.addEventListener('click', async () => {
+    submitBtn.disabled = true;
+    submitBtn.textContent = '保存中…';
+    const payload = {
+      task_type:  selectedTask,
+      worked_at:  dateInput.value,
+      note:       noteInput.value.trim(),
+      crop_id:    selectedCropId,
+    };
+    try {
+      const res = await fetch(API_LOG(bedId), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('server error');
+      // 成功 → 詳細画面に戻る（記録が反映された状態で再取得）
+      await openDetail(bedId, dateStr);
+    } catch {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '記録する';
+      alert('保存に失敗しました。もう一度お試しください。');
+    }
+  });
+  form.appendChild(submitBtn);
+
+  c.appendChild(form);
+}
+
+// ── Helper ─────────────────────────────────────────────
+function el(tag, cls) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  return e;
+}
+
+init();
+</script>
+</body>
+</html>

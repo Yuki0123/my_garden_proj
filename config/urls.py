@@ -25,6 +25,7 @@ urlpatterns = [
     path("accounts/", include("django.contrib.auth.urls")),
     path("admin/", admin.site.urls),
     path("garden/", include("garden.urls")),
+    path("garden2/", include("garden2.urls")),
     path("", RedirectView.as_view(url="/garden/"), name="root"),
 ]
 

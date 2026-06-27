@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from datetime import date
 
 from django.contrib.auth.decorators import login_required
@@ -32,7 +33,8 @@ def area_state_api(request, area_id):
     beds = Bed.objects.filter(
         area=area,
         created_at__lte=target_date,
-    ).filter(Q(deleted_at__isnull=True) | Q(deleted_at__gte=target_date))
+    ).filter(Q(deleted_at__isnull=True) | Q(deleted_at__gte=target_date)
+    ).order_by("row_start", "col_start")
 
     crops = Crop.objects.filter(
         area=area,
@@ -229,3 +231,82 @@ def plant_crop_api(request):
             return JsonResponse({"ok": True, "crop_count": 1})
     except (KeyError, ValueError) as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=400)
+
+
+@login_required
+def timeline_view(request):
+    areas = GardenArea.objects.filter(owner=request.user)
+    return render(request, "garden/timeline.html", {
+        "areas": areas,
+        "today": str(date.today()),
+    })
+
+
+@login_required
+def timeline_api(request, area_id):
+    try:
+        year = int(request.GET.get("year", date.today().year))
+    except ValueError:
+        year = date.today().year
+
+    area = get_object_or_404(GardenArea, id=area_id, owner=request.user)
+    year_start = date(year, 1, 1)
+    year_end   = date(year, 12, 31)
+
+    beds = Bed.objects.filter(
+        area=area,
+        created_at__lte=year_end,
+    ).filter(
+        Q(deleted_at__isnull=True) | Q(deleted_at__gte=year_start)
+    ).order_by("row_start", "col_start", "created_at")
+
+    crops = Crop.objects.filter(
+        area=area,
+        planted_at__lte=year_end,
+    ).filter(
+        Q(harvested_at__isnull=True) | Q(harvested_at__gte=year_start)
+    ).select_related("vegetable_type").order_by("planted_at")
+
+    bed_data = []
+    for bed in beds:
+        bed_crops = [
+            c for c in crops
+            if (c.row_start <= bed.row_end and c.row_end >= bed.row_start
+                and c.col_start <= bed.col_end and c.col_end >= bed.col_start)
+        ]
+        # 同じ野菜・同じ植付日・撤去日をまとめて1行に
+        groups = defaultdict(list)
+        for c in bed_crops:
+            key = (c.vegetable_type_id, str(c.planted_at),
+                   str(c.harvested_at) if c.harvested_at else None)
+            groups[key].append(c)
+
+        crop_rows = []
+        for (_vid, planted, harvested), grp in groups.items():
+            first = grp[0]
+            crop_rows.append({
+                "name": first.vegetable_type.name,
+                "color": first.vegetable_type.color,
+                "icon_url": (request.build_absolute_uri(first.vegetable_type.icon.url)
+                             if first.vegetable_type.icon else None),
+                "count": len(grp),
+                "planted_at": planted,
+                "harvested_at": harvested,
+                "status": first.status,
+            })
+        # 植付日順に並べ直す
+        crop_rows.sort(key=lambda r: r["planted_at"])
+
+        bed_data.append({
+            "id": bed.id,
+            "name": bed.name,
+            "created_at": str(bed.created_at),
+            "deleted_at": str(bed.deleted_at) if bed.deleted_at else None,
+            "crops": crop_rows,
+        })
+
+    return JsonResponse({
+        "year": year,
+        "area": {"id": area.id, "name": area.name},
+        "beds": bed_data,
+    })
