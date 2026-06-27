@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
-from .models import Bed, Crop, GardenArea, MaintenanceLog
+from .models import Bed, Crop, GardenArea, MaintenanceLog, VegetableFamily, VegetableType
 
 def _tint(hex_color):
     """16進カラーコードから薄い背景色（tint）を生成する。"""
@@ -538,3 +538,63 @@ def crop_adjust_api(request, crop_id):
     crop.col_end   = new_ce
     crop.save(update_fields=['row_start', 'row_end', 'col_start', 'col_end'])
     return JsonResponse({'ok': True, 'rs': new_rs, 're': new_re, 'cs': new_cs, 'ce': new_ce})
+
+
+@login_required
+def vegetable_types_api(request):
+    families = VegetableFamily.objects.prefetch_related('vegetable_types').order_by('name')
+    data = []
+    for fam in families:
+        types = [
+            {
+                'id': vt.id,
+                'name': vt.name,
+                'spacing_cm': vt.spacing_cm,
+                'planting_method': vt.planting_method,
+            }
+            for vt in fam.vegetable_types.all().order_by('name')
+        ]
+        if types:
+            data.append({'id': fam.id, 'name': fam.name, 'color': fam.color, 'types': types})
+    return JsonResponse({'families': data})
+
+
+@login_required
+@require_POST
+def bed_plant_api(request, bed_id):
+    bed = get_object_or_404(Bed, id=bed_id, area__owner=request.user)
+    body = json.loads(request.body)
+
+    vt = get_object_or_404(VegetableType, id=int(body['vegetable_type_id']))
+    try:
+        planted_at = date.fromisoformat(body.get('planted_at', str(date.today())))
+    except ValueError:
+        planted_at = date.today()
+    variety = body.get('variety', '')
+    method = body.get('method', vt.planting_method)
+    area = bed.area
+
+    created_ids = []
+    if method == 'individual':
+        for pos in body.get('positions', []):
+            row = max(bed.row_start, min(bed.row_end, bed.row_start + int(pos)))
+            crop = Crop.objects.create(
+                area=area, vegetable_type=vt, variety=variety,
+                row_start=row, row_end=row,
+                col_start=bed.col_start, col_end=bed.col_end,
+                planted_at=planted_at, status='growing',
+            )
+            created_ids.append(crop.id)
+    else:
+        rs_off = int(body.get('row_start_offset', 0))
+        re_off = int(body.get('row_end_offset', bed.row_end - bed.row_start))
+        crop = Crop.objects.create(
+            area=area, vegetable_type=vt, variety=variety,
+            row_start=max(bed.row_start, min(bed.row_end, bed.row_start + rs_off)),
+            row_end=max(bed.row_start, min(bed.row_end, bed.row_start + re_off)),
+            col_start=bed.col_start, col_end=bed.col_end,
+            planted_at=planted_at, status='growing',
+        )
+        created_ids.append(crop.id)
+
+    return JsonResponse({'ok': True, 'created': created_ids})
