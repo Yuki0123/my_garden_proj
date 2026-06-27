@@ -455,6 +455,44 @@ html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-
   border-radius:9px;padding:6px 14px;font-size:12px;font-weight:700;
   cursor:pointer;font-family:inherit;
 }
+
+/* ── 調整パネル ──────────────────────────────────────── */
+.adj-panel{
+  background:#f0ebe0;border:1px solid #ddd7c5;border-radius:12px;overflow:hidden;
+}
+.adj-toggle{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:9px 13px;background:none;border:none;cursor:pointer;
+  font-size:11px;font-weight:700;color:#6b6655;font-family:inherit;text-align:left;
+}
+.adj-toggle-arrow{font-size:9px;flex-shrink:0;transition:transform .2s;color:#a79e88}
+.adj-toggle.open .adj-toggle-arrow{transform:rotate(180deg)}
+.adj-body{display:flex;flex-direction:column;gap:10px;padding:0 12px 12px}
+.adj-group-label{font-size:10px;font-weight:700;color:#8a8067;letter-spacing:.04em;margin-bottom:5px}
+.adj-move-grid{
+  display:grid;grid-template-columns:repeat(3,34px);grid-template-rows:repeat(3,34px);
+  gap:4px;justify-content:start;
+}
+.adj-btn{
+  width:34px;height:34px;border-radius:8px;border:1px solid #cfc8b4;
+  background:#e8e1d3;color:#4a4639;font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-family:inherit;transition:background .1s;
+}
+.adj-btn:hover{background:#ddd6c5}.adj-btn:active{background:#ccc5b0}
+.adj-move-opt{display:flex;align-items:center;gap:6px;font-size:11px;color:#6b6655;font-weight:600;margin-top:5px}
+.adj-move-opt input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex-shrink:0}
+.adj-edge-grid{display:flex;flex-direction:column;gap:5px}
+.adj-edge-row{display:flex;align-items:center;gap:7px}
+.adj-edge-label{font-size:10px;font-weight:700;color:#8a8067;min-width:2.4em}
+.adj-edge-btns{display:flex;gap:4px}
+.adj-btn-sm{
+  width:30px;height:26px;border-radius:7px;border:1px solid #cfc8b4;
+  background:#e8e1d3;color:#4a4639;font-size:13px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-family:inherit;transition:background .1s;
+}
+.adj-btn-sm:hover{background:#ddd6c5}.adj-btn-sm:active{background:#ccc5b0}
 </style>
 </head>
 <body>
@@ -554,6 +592,12 @@ const API_DETAIL = id  => `/garden2/api/bed/${id}/detail/`;
 const API_LOG     = id  => `/garden2/api/bed/${id}/log/`;
 const API_HARVEST    = id => `/garden2/api/crop/${id}/harvest/`;
 const API_BED_REMOVE = id => `/garden2/api/bed/${id}/remove/`;
+const API_BED_ADJUST  = id => `/garden2/api/bed/${id}/adjust/`;
+const API_CROP_ADJUST = id => `/garden2/api/crop/${id}/adjust/`;
+
+// ── Adjust panel open state ────────────────────────────
+let _adjOpen     = false;   // bed adjust panel
+let _cropAdjOpen = {};      // { cropId: bool }
 
 // ── App state ──────────────────────────────────────────
 let S = {
@@ -1149,8 +1193,149 @@ async function openDetail(bedId, dateStr) {
 }
 
 function closeDetail() {
+  _adjOpen     = false;
+  _cropAdjOpen = {};
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('detailSheet').classList.remove('show');
+}
+
+// ── 調整パネル共通ビルダー ─────────────────────────────
+function _buildAdjPanel(title, isOpen, onToggle, buildBody) {
+  const panel = el('div', 'adj-panel');
+  const toggle = el('button', 'adj-toggle' + (isOpen ? ' open' : ''));
+  toggle.type = 'button';
+  const tlbl = el('span'); tlbl.textContent = title;
+  const tarr = el('span', 'adj-toggle-arrow'); tarr.textContent = '▼';
+  toggle.appendChild(tlbl); toggle.appendChild(tarr);
+
+  const body = el('div', 'adj-body');
+  body.style.display = isOpen ? '' : 'none';
+
+  toggle.addEventListener('click', () => {
+    const next = body.style.display === 'none';
+    body.style.display = next ? '' : 'none';
+    toggle.classList.toggle('open', next);
+    onToggle(next);
+  });
+
+  buildBody(body);
+  panel.appendChild(toggle);
+  panel.appendChild(body);
+  return panel;
+}
+
+function _mkMoveGrid(onClick) {
+  const grid = el('div', 'adj-move-grid');
+  // 3×3: _ ↑ _ / ← _ → / _ ↓ _
+  [null, {i:'↑',r:-1,c:0}, null,
+   {i:'←',r:0,c:-1}, null, {i:'→',r:0,c:1},
+   null, {i:'↓',r:1,c:0}, null
+  ].forEach(d => {
+    if (!d) { grid.appendChild(el('div')); return; }
+    const btn = el('button', 'adj-btn');
+    btn.type = 'button'; btn.textContent = d.i;
+    btn.addEventListener('click', () => onClick(d.r, d.c));
+    grid.appendChild(btn);
+  });
+  return grid;
+}
+
+function _mkEdgeGrid(onEdge) {
+  const grid = el('div', 'adj-edge-grid');
+  [
+    {label:'上端', key:'drs', plus:-1, minus:+1},
+    {label:'下端', key:'dre', plus:+1, minus:-1},
+    {label:'左端', key:'dcs', plus:-1, minus:+1},
+    {label:'右端', key:'dce', plus:+1, minus:-1},
+  ].forEach(e => {
+    const row = el('div', 'adj-edge-row');
+    const lbl = el('span', 'adj-edge-label'); lbl.textContent = e.label;
+    const btns = el('div', 'adj-edge-btns');
+    const mBtn = el('button', 'adj-btn-sm'); mBtn.type='button'; mBtn.textContent='−';
+    mBtn.addEventListener('click', () => onEdge(e.key, e.minus));
+    const pBtn = el('button', 'adj-btn-sm'); pBtn.type='button'; pBtn.textContent='＋';
+    pBtn.addEventListener('click', () => onEdge(e.key, e.plus));
+    btns.appendChild(mBtn); btns.appendChild(pBtn);
+    row.appendChild(lbl); row.appendChild(btns);
+    grid.appendChild(row);
+  });
+  return grid;
+}
+
+function renderBedAdjPanel(bedId, dateStr) {
+  return _buildAdjPanel('位置・サイズを調整', _adjOpen, v => { _adjOpen = v; }, body => {
+    // Move
+    const moveLbl = el('div', 'adj-group-label'); moveLbl.textContent = '移動（10cm ずつ）';
+    body.appendChild(moveLbl);
+
+    const moveCropsChk = el('input');
+    moveCropsChk.type = 'checkbox'; moveCropsChk.checked = true;
+    moveCropsChk.id = `mc-${bedId}`;
+
+    body.appendChild(_mkMoveGrid((dr, dc) =>
+      adjBed(bedId, {dr, dc, move_crops: moveCropsChk.checked}, dateStr)
+    ));
+
+    const optRow = el('div', 'adj-move-opt');
+    const optLbl = el('label'); optLbl.htmlFor = moveCropsChk.id;
+    optLbl.textContent = '作物も連動して移動';
+    optRow.appendChild(moveCropsChk); optRow.appendChild(optLbl);
+    body.appendChild(optRow);
+
+    // Resize
+    const resizeLbl = el('div', 'adj-group-label');
+    resizeLbl.style.marginTop = '4px';
+    resizeLbl.textContent = '辺を移動（＋で外へ・−で内へ）';
+    body.appendChild(resizeLbl);
+    body.appendChild(_mkEdgeGrid((key, val) => adjBed(bedId, {[key]: val}, dateStr)));
+  });
+}
+
+function renderCropAdjPanel(cropId, bedId, dateStr) {
+  return _buildAdjPanel('植わっている範囲を調整', !!_cropAdjOpen[cropId],
+    v => { _cropAdjOpen[cropId] = v; }, body => {
+      const moveLbl = el('div', 'adj-group-label'); moveLbl.textContent = '移動（10cm ずつ）';
+      body.appendChild(moveLbl);
+      body.appendChild(_mkMoveGrid((dr, dc) => adjCrop(cropId, {dr, dc}, bedId, dateStr)));
+
+      const resizeLbl = el('div', 'adj-group-label');
+      resizeLbl.style.marginTop = '4px';
+      resizeLbl.textContent = '辺を移動（＋で外へ・−で内へ）';
+      body.appendChild(resizeLbl);
+      body.appendChild(_mkEdgeGrid((key, val) => adjCrop(cropId, {[key]: val}, bedId, dateStr)));
+    }
+  );
+}
+
+async function adjBed(bedId, params, dateStr) {
+  try {
+    const res = await fetch(API_BED_ADJUST(bedId), {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken':CSRF},
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) { alert('保存に失敗しました。'); return; }
+    _adjOpen = true;
+    await openDetail(bedId, dateStr);
+    // 詳細を閉じずにマップだけ更新
+    const mapData = await fetch(`${API_STATE(S.areaId)}?date=${S.date}`).then(r => r.json());
+    renderGarden(mapData);
+  } catch { alert('保存に失敗しました。'); }
+}
+
+async function adjCrop(cropId, params, bedId, dateStr) {
+  try {
+    const res = await fetch(API_CROP_ADJUST(cropId), {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken':CSRF},
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) { alert('保存に失敗しました。'); return; }
+    _cropAdjOpen[cropId] = true;
+    await openDetail(bedId, dateStr);
+    const mapData = await fetch(`${API_STATE(S.areaId)}?date=${S.date}`).then(r => r.json());
+    renderGarden(mapData);
+  } catch { alert('保存に失敗しました。'); }
 }
 
 function renderCropSection(crop, bedId, dateStr, allCrops) {
@@ -1310,6 +1495,9 @@ function renderCropSection(crop, bedId, dateStr, allCrops) {
   harvestRow.appendChild(harvestBtn);
   section.appendChild(harvestRow);
 
+  // 作物の範囲調整パネル
+  section.appendChild(renderCropAdjPanel(crop.id, bedId, dateStr));
+
   return section;
 }
 
@@ -1456,6 +1644,9 @@ function renderDetail(data) {
     plantBtn.textContent = 'この畝に植える';
     body.appendChild(plantBtn);
   }
+
+  // 畝の位置・サイズ調整パネル
+  body.appendChild(renderBedAdjPanel(data.bed.id, data.date));
 
   // 畝を撤去（まだ撤去されていない場合のみ）
   if (!data.bed.deleted_at) {

@@ -468,3 +468,73 @@ def bed_remove_api(request, bed_id):
     bed.deleted_at = deleted_at
     bed.save(update_fields=['deleted_at'])
     return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def bed_adjust_api(request, bed_id):
+    bed = get_object_or_404(Bed, id=bed_id, area__owner=request.user)
+    body = json.loads(request.body)
+    dr  = int(body.get('dr',  0))
+    dc  = int(body.get('dc',  0))
+    drs = int(body.get('drs', 0))
+    dre = int(body.get('dre', 0))
+    dcs = int(body.get('dcs', 0))
+    dce = int(body.get('dce', 0))
+    move_crops = bool(body.get('move_crops', True))
+
+    area   = bed.area
+    new_rs = max(0, min(bed.row_start + dr + drs, area.rows - 1))
+    new_re = max(0, min(bed.row_end   + dr + dre, area.rows - 1))
+    new_cs = max(0, min(bed.col_start + dc + dcs, area.cols - 1))
+    new_ce = max(0, min(bed.col_end   + dc + dce, area.cols - 1))
+    if new_rs > new_re or new_cs > new_ce:
+        return JsonResponse({'error': 'invalid size'}, status=400)
+
+    if (dr or dc) and move_crops:
+        today = date.today()
+        for crop in Crop.objects.filter(
+            area=area,
+            row_start__gte=bed.row_start, row_end__lte=bed.row_end,
+            col_start__gte=bed.col_start, col_end__lte=bed.col_end,
+        ).filter(Q(harvested_at__isnull=True) | Q(harvested_at__gte=today)):
+            crop.row_start = max(0, min(crop.row_start + dr, area.rows - 1))
+            crop.row_end   = max(0, min(crop.row_end   + dr, area.rows - 1))
+            crop.col_start = max(0, min(crop.col_start + dc, area.cols - 1))
+            crop.col_end   = max(0, min(crop.col_end   + dc, area.cols - 1))
+            crop.save(update_fields=['row_start', 'row_end', 'col_start', 'col_end'])
+
+    bed.row_start = new_rs
+    bed.row_end   = new_re
+    bed.col_start = new_cs
+    bed.col_end   = new_ce
+    bed.save(update_fields=['row_start', 'row_end', 'col_start', 'col_end'])
+    return JsonResponse({'ok': True, 'rs': new_rs, 're': new_re, 'cs': new_cs, 'ce': new_ce})
+
+
+@login_required
+@require_POST
+def crop_adjust_api(request, crop_id):
+    crop = get_object_or_404(Crop, id=crop_id, area__owner=request.user)
+    body = json.loads(request.body)
+    dr  = int(body.get('dr',  0))
+    dc  = int(body.get('dc',  0))
+    drs = int(body.get('drs', 0))
+    dre = int(body.get('dre', 0))
+    dcs = int(body.get('dcs', 0))
+    dce = int(body.get('dce', 0))
+
+    area   = crop.area
+    new_rs = max(0, min(crop.row_start + dr + drs, area.rows - 1))
+    new_re = max(0, min(crop.row_end   + dr + dre, area.rows - 1))
+    new_cs = max(0, min(crop.col_start + dc + dcs, area.cols - 1))
+    new_ce = max(0, min(crop.col_end   + dc + dce, area.cols - 1))
+    if new_rs > new_re or new_cs > new_ce:
+        return JsonResponse({'error': 'invalid size'}, status=400)
+
+    crop.row_start = new_rs
+    crop.row_end   = new_re
+    crop.col_start = new_cs
+    crop.col_end   = new_ce
+    crop.save(update_fields=['row_start', 'row_end', 'col_start', 'col_end'])
+    return JsonResponse({'ok': True, 'rs': new_rs, 're': new_re, 'cs': new_cs, 'ce': new_ce})
