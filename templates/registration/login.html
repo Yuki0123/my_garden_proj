@@ -1,45 +1,141 @@
-{% extends "base.html" %}
-
-{% block title %}ログイン — 畑管理{% endblock %}
-
-{% block extra_css %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ログイン — 菜園手帖</title>
+<link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  .login-wrap {
-    max-width: 360px;
-    margin: 60px auto;
-    background: white;
-    padding: 32px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  }
-  h1 { font-size: 1.3rem; margin-bottom: 24px; color: #4a7c59; }
-  label { display: block; font-size: 0.85rem; margin-bottom: 4px; color: #555; }
-  input[type="text"], input[type="password"] {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 1rem;
-    margin-bottom: 16px;
-  }
-  .btn { width: 100%; padding: 10px; font-size: 1rem; }
-  .error { color: #c0392b; font-size: 0.85rem; margin-bottom: 12px; }
-</style>
-{% endblock %}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{
+  min-height:100%;
+  background:#e8e0ce;
+  font-family:'Zen Kaku Gothic New',sans-serif;
+  color:#2c2a22;
+  display:flex;align-items:center;justify-content:center;
+  padding:32px 16px;
+}
 
-{% block content %}
-<div class="login-wrap">
-  <h1>ログイン</h1>
-  {% if form.errors %}
-    <p class="error">ユーザー名またはパスワードが正しくありません。</p>
-  {% endif %}
-  <form method="post">
-    {% csrf_token %}
-    <label for="id_username">ユーザー名</label>
-    <input type="text" name="username" id="id_username" autofocus>
-    <label for="id_password">パスワード</label>
-    <input type="password" name="password" id="id_password">
-    <button type="submit" class="btn">ログイン</button>
-  </form>
+/* ─── Card ─── */
+.login-card{
+  width:100%;max-width:360px;
+  background:#f6f2e8;
+  border-radius:16px;
+  box-shadow:0 4px 32px rgba(0,0,0,.12);
+  overflow:hidden;
+}
+
+/* ─── Header strip ─── */
+.login-header{
+  padding:28px 28px 20px;
+  border-bottom:1px solid #ece5d3;
+  display:flex;align-items:center;gap:10px;
+}
+.login-logo-icon{
+  width:34px;height:34px;border-radius:50%;background:#5d8a55;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.login-logo-leaf{
+  width:12px;height:17px;background:#f6f2e8;
+  border-radius:0 12px 0 12px;transform:rotate(-20deg);
+}
+.login-logo-name{
+  font-family:'Shippori Mincho',serif;
+  font-size:22px;font-weight:600;color:#2c2a22;
+  letter-spacing:.02em;
+}
+.login-logo-sub{
+  font-size:10px;color:#a79e88;font-weight:600;
+  letter-spacing:.08em;margin-top:2px;
+}
+
+/* ─── Form body ─── */
+.login-body{padding:28px 28px 32px}
+
+.login-title{
+  font-size:13px;font-weight:700;color:#6b6655;
+  letter-spacing:.06em;margin-bottom:22px;
+}
+
+.field{margin-bottom:16px}
+.field label{
+  display:block;font-size:11px;font-weight:700;
+  color:#8a8067;letter-spacing:.05em;margin-bottom:6px;
+}
+.field input{
+  width:100%;padding:10px 12px;
+  border:1px solid #ddd7c5;border-radius:8px;
+  background:#fffef9;
+  font-size:15px;font-family:inherit;color:#2c2a22;
+  outline:none;transition:border-color .15s,box-shadow .15s;
+  -webkit-appearance:none;
+}
+.field input:focus{
+  border-color:#5d8a55;
+  box-shadow:0 0 0 3px rgba(93,138,85,.15);
+}
+
+.error-msg{
+  font-size:11px;font-weight:600;color:#b05040;
+  background:#fdf0ec;border:1px solid #f0cdc4;
+  border-radius:7px;padding:9px 12px;
+  margin-bottom:18px;
+}
+
+.btn-login{
+  width:100%;padding:12px;
+  background:#5d8a55;color:#fff;
+  border:none;border-radius:9px;
+  font-size:14px;font-weight:700;
+  font-family:inherit;letter-spacing:.04em;
+  cursor:pointer;
+  transition:background .15s,transform .1s;
+}
+.btn-login:hover{background:#4d7847}
+.btn-login:active{transform:scale(.98)}
+
+/* ─── Footer note ─── */
+.login-footer{
+  padding:0 28px 24px;
+  font-size:10px;color:#b3aa92;font-weight:600;
+  letter-spacing:.04em;text-align:center;
+}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="login-header">
+    <div class="login-logo-icon">
+      <div class="login-logo-leaf"></div>
+    </div>
+    <div>
+      <div class="login-logo-name">菜園手帖</div>
+      <div class="login-logo-sub">MY GARDEN NOTEBOOK</div>
+    </div>
+  </div>
+  <div class="login-body">
+    <div class="login-title">アカウントにログイン</div>
+    {% if form.errors %}
+      <div class="error-msg">ユーザー名またはパスワードが正しくありません。</div>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label for="id_username">ユーザー名</label>
+        <input type="text" name="username" id="id_username" autocomplete="username" autofocus>
+      </div>
+      <div class="field">
+        <label for="id_password">パスワード</label>
+        <input type="password" name="password" id="id_password" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-login">ログイン</button>
+    </form>
+  </div>
+  <div class="login-footer">アカウントをお持ちでない方は管理者にお問い合わせください</div>
 </div>
-{% endblock %}
+</body>
+</html>
