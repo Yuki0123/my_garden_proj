@@ -598,3 +598,37 @@ def bed_plant_api(request, bed_id):
         created_ids.append(crop.id)
 
     return JsonResponse({'ok': True, 'created': created_ids})
+
+
+@login_required
+@require_POST
+def bed_add_api(request, area_id):
+    area = get_object_or_404(GardenArea, id=area_id, owner=request.user)
+    body = json.loads(request.body)
+
+    name = body.get('name', '').strip()
+    if not name:
+        return JsonResponse({'error': 'name required'}, status=400)
+    try:
+        created_at = date.fromisoformat(body.get('created_at', str(date.today())))
+    except ValueError:
+        created_at = date.today()
+
+    def to_grid(cm_key, default):
+        return max(0, int(body.get(cm_key, default)) // 5)
+
+    row_start = min(area.rows - 1, to_grid('row_start_cm', 0))
+    row_end   = min(area.rows - 1, to_grid('row_end_cm',   80))
+    col_start = min(area.cols - 1, to_grid('col_start_cm', 0))
+    col_end   = min(area.cols - 1, to_grid('col_end_cm',   area.cols * 5 - 5))
+
+    if row_start > row_end or col_start > col_end:
+        return JsonResponse({'error': 'invalid range'}, status=400)
+
+    bed = Bed.objects.create(
+        area=area, name=name,
+        row_start=row_start, row_end=row_end,
+        col_start=col_start, col_end=col_end,
+        created_at=created_at,
+    )
+    return JsonResponse({'ok': True, 'id': bed.id})

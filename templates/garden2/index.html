@@ -190,6 +190,33 @@ html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-
 .legend-dot{width:9px;height:9px;border-radius:2px;display:inline-block}
 .legend-name{font-size:10px;color:#8a8067;font-weight:600}
 .map-hint{text-align:center;font-size:10px;color:#b3aa92;margin-top:2px}
+.btn-add-bed{
+  background:none;border:1px solid var(--accent);color:var(--accent);
+  border-radius:20px;padding:4px 11px;font-size:11px;font-weight:700;
+  cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;
+}
+.btn-add-bed:hover{background:var(--accent);color:#fff}
+.add-bed-pos-grid{display:flex;flex-direction:column;gap:8px}
+.add-bed-pos-hint{font-size:10px;color:#a79e88;font-weight:600;margin-bottom:2px}
+.add-bed-tmpl-year-chips{display:flex;flex-wrap:wrap;gap:6px}
+.add-bed-tmpl-year-chip{
+  padding:4px 11px;border-radius:20px;border:1.5px solid #e6dfcd;background:#fbf8f0;
+  font-size:11px;font-weight:700;color:#6b6655;cursor:pointer;font-family:inherit;transition:all .15s;
+}
+.add-bed-tmpl-year-chip.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+.add-bed-tmpl-map-wrap{
+  margin-top:6px;border-radius:10px;overflow:hidden;
+  border:1px solid #ddd7c5;background:#cdc2a9;
+}
+.add-bed-tmpl-hint{
+  font-size:10px;color:#a79e88;font-weight:600;text-align:center;
+  padding:4px 0 0;
+}
+.add-bed-tmpl-info{
+  font-size:11px;color:var(--accent);font-weight:700;
+  padding:5px 2px 0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;
+}
+.add-bed-tmpl-info-sub{font-size:10px;color:#6b6655;font-weight:600}
 
 /* ─── Banner ─── */
 .banner{
@@ -506,6 +533,14 @@ html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-
 .adj-panel{
   background:#f0ebe0;border:1px solid #ddd7c5;border-radius:12px;overflow:hidden;
 }
+.adj-pos-table{
+  display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;
+  padding:8px 12px 7px;border-bottom:1px solid #ddd7c5;
+  background:#e8e1d3;
+}
+.adj-pos-kv{display:flex;align-items:baseline;gap:5px}
+.adj-pos-k{font-size:9px;font-weight:700;color:#a79e88;white-space:nowrap;min-width:2em}
+.adj-pos-v{font-size:14px;font-weight:700;color:#33302a}
 .adj-toggle{
   width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
   padding:9px 13px;background:none;border:none;cursor:pointer;
@@ -642,10 +677,12 @@ const API_BED_ADJUST  = id => `/garden2/api/bed/${id}/adjust/`;
 const API_CROP_ADJUST = id => `/garden2/api/crop/${id}/adjust/`;
 const API_VEG_TYPES   = ()  => `/garden2/api/vegetable-types/`;
 const API_BED_PLANT   = id => `/garden2/api/bed/${id}/plant/`;
+const API_BED_ADD     = id => `/garden2/api/area/${id}/bed/add/`;
 
 // ── Adjust panel open state ────────────────────────────
-let _adjOpen     = false;   // bed adjust panel
-let _cropAdjOpen = {};      // { cropId: bool }
+let _adjOpen        = false;
+let _cropAdjOpen    = {};
+let _currentGarden  = null;  // renderGarden に渡された最新データ
 
 // ── App state ──────────────────────────────────────────
 let S = {
@@ -888,6 +925,7 @@ function scrollTop() {
 // ── Render: Garden map ────────────────────────────────
 // ══════════════════════════════════════════════════════
 function renderGarden(data) {
+  _currentGarden = data;
   const area = data.area;
   const content = document.getElementById('tabContent');
   content.innerHTML = '';
@@ -909,7 +947,12 @@ function renderGarden(data) {
 
   // Title row
   const titleRow = el('div', 'map-title-row');
-  titleRow.innerHTML = `<span class="map-title">${area.name}</span>`;
+  const titleSpan = el('span', 'map-title'); titleSpan.textContent = area.name;
+  titleRow.appendChild(titleSpan);
+  const addBedBtn = el('button', 'btn-add-bed');
+  addBedBtn.textContent = '+ 畝を追加';
+  addBedBtn.addEventListener('click', () => openAddBedForm(_currentGarden));
+  titleRow.appendChild(addBedBtn);
   content.appendChild(titleRow);
 
   // Map
@@ -919,8 +962,8 @@ function renderGarden(data) {
   map.style.marginTop = '4px';
 
   // 3m(30マス)ごとに濃淡ストライプ
-  const sp  = (30 / area.rows * 100).toFixed(4);   // 1ストライプの%
-  const sp2 = (30 / area.rows * 200).toFixed(4);   // 繰り返し幅の%
+  const sp  = (60 / area.rows * 100).toFixed(4);   // 1ストライプの%（3m=60マス）
+  const sp2 = (60 / area.rows * 200).toFixed(4);   // 繰り返し幅の%
   map.style.background =
     `repeating-linear-gradient(to bottom,` +
     `transparent 0%,transparent ${sp}%,` +
@@ -945,38 +988,38 @@ function renderGarden(data) {
     svg.appendChild(l);
   };
 
-  // 縦グリッド（1mごと = 10マスごと）
-  for (let c = 10; c < area.cols; c += 10) {
+  // 縦グリッド（1mごと = 20マスごと）
+  for (let c = 20; c < area.cols; c += 20) {
     mkLine(c, 0, c, area.rows, 'rgba(0,0,0,0.07)', '0.25');
   }
-  // 横グリッド（1mごと = 10マスごと）
-  for (let r = 10; r < area.rows; r += 10) {
+  // 横グリッド（1mごと = 20マスごと）
+  for (let r = 20; r < area.rows; r += 20) {
     mkLine(0, r, area.cols, r, 'rgba(0,0,0,0.07)', '0.25');
   }
 
   // 3m目盛りラベル（左端）
-  for (let r = 0; r <= area.rows; r += 30) {
+  for (let r = 0; r <= area.rows; r += 60) {
     const isFirst = r === 0;
     const isLast  = r === area.rows;
-    const labelY  = isFirst ? r + 0.4 : isLast ? r - 2.8 : r - 1.2;
+    const labelY  = isFirst ? r + 0.8 : isLast ? r - 5.6 : r - 2.4;
     // 背景
     const bg = document.createElementNS(ns, 'rect');
-    bg.setAttribute('x', '0.4'); bg.setAttribute('y', String(labelY));
-    bg.setAttribute('width', '5.5'); bg.setAttribute('height', '2.4');
-    bg.setAttribute('rx', '0.7');
+    bg.setAttribute('x', '0.8'); bg.setAttribute('y', String(labelY));
+    bg.setAttribute('width', '11'); bg.setAttribute('height', '4.8');
+    bg.setAttribute('rx', '1.4');
     bg.setAttribute('fill', 'rgba(246,242,232,0.82)');
     svg.appendChild(bg);
     // テキスト
     const txt = document.createElementNS(ns, 'text');
-    txt.setAttribute('x', '3.2');
-    txt.setAttribute('y', String(labelY + 1.2));
+    txt.setAttribute('x', '6.4');
+    txt.setAttribute('y', String(labelY + 2.4));
     txt.setAttribute('text-anchor', 'middle');
     txt.setAttribute('dominant-baseline', 'middle');
-    txt.setAttribute('font-size', '1.9');
+    txt.setAttribute('font-size', '3.8');
     txt.setAttribute('font-family', 'sans-serif');
     txt.setAttribute('font-weight', '700');
     txt.setAttribute('fill', 'rgba(80,58,28,0.65)');
-    txt.textContent = `${r / 10}m`;
+    txt.textContent = `${r / 20}m`;
     svg.appendChild(txt);
   }
 
@@ -1248,6 +1291,257 @@ function closeDetail() {
 }
 
 // ══════════════════════════════════════════════════════
+// ── Template mini-map ─────────────────────────────────
+// ══════════════════════════════════════════════════════
+function _buildTmplMap(area, beds, onSelect) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  // Landscape: row axis → X (18m), col axis → Y (7m)
+  svg.setAttribute('viewBox', `0 0 ${area.rows} ${area.cols}`);
+  svg.style.cssText = `width:100%;display:block;cursor:default;`;
+  svg.style.aspectRatio = `${area.rows} / ${area.cols}`;
+
+  // Background
+  const bg = document.createElementNS(ns, 'rect');
+  bg.setAttribute('x','0'); bg.setAttribute('y','0');
+  bg.setAttribute('width', area.rows); bg.setAttribute('height', area.cols);
+  bg.setAttribute('fill', '#cdc2a9');
+  svg.appendChild(bg);
+
+  // 1m grid lines (every 10 grid units)
+  for (let r = 10; r < area.rows; r += 10) {
+    const l = document.createElementNS(ns, 'line');
+    l.setAttribute('x1', r); l.setAttribute('y1', 0);
+    l.setAttribute('x2', r); l.setAttribute('y2', area.cols);
+    l.setAttribute('stroke', 'rgba(0,0,0,0.07)'); l.setAttribute('stroke-width', '0.25');
+    svg.appendChild(l);
+  }
+
+  beds.forEach(bed => {
+    const g = document.createElementNS(ns, 'g');
+    g.style.cursor = 'pointer';
+
+    // In landscape: x=row_start, y=col_start, w=rows span, h=cols span
+    const bx = bed.row_start;
+    const by = bed.col_start;
+    const bw = bed.row_end - bed.row_start + 1;
+    const bh = bed.col_end  - bed.col_start + 1;
+
+    const r = document.createElementNS(ns, 'rect');
+    r.setAttribute('x', bx); r.setAttribute('y', by);
+    r.setAttribute('width', bw); r.setAttribute('height', bh);
+    r.setAttribute('fill', '#c8b68a');
+    r.setAttribute('stroke', '#a98f63'); r.setAttribute('stroke-width', '0.4');
+    r.setAttribute('rx', '1'); r.setAttribute('ry', '1');
+    r.dataset.bedId = bed.id;
+
+    const fs = Math.min(9, bh * 0.52, bw * 0.13).toFixed(1);
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', bx + bw / 2); txt.setAttribute('y', by + bh / 2);
+    txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('dominant-baseline', 'middle');
+    txt.setAttribute('font-size', fs); txt.setAttribute('font-family', 'sans-serif');
+    txt.setAttribute('font-weight', '700'); txt.setAttribute('fill', '#5a4020');
+    txt.setAttribute('pointer-events', 'none');
+    txt.textContent = bed.name;
+
+    g.appendChild(r); g.appendChild(txt);
+
+    g.addEventListener('click', () => {
+      svg.querySelectorAll('[data-bed-id]').forEach(el => {
+        el.setAttribute('fill', '#c8b68a');
+        el.setAttribute('stroke', '#a98f63'); el.setAttribute('stroke-width', '0.4');
+      });
+      r.setAttribute('fill', '#b8d4a8');
+      r.setAttribute('stroke', '#5d8a55'); r.setAttribute('stroke-width', '1.5');
+      onSelect(bed);
+    });
+
+    svg.appendChild(g);
+  });
+
+  return svg;
+}
+
+// ══════════════════════════════════════════════════════
+// ── Add bed form ──────────────────────────────────────
+// ══════════════════════════════════════════════════════
+function openAddBedForm(gardenData) {
+  const area    = gardenData.area;
+  const lenCm   = area.rows * 5;
+  const widCm   = area.cols * 5;
+  const years   = gardenData.available_years || [];
+
+  // デフォルト位置: 現在表示中の畝の最下端 + 40cm ギャップ
+  const curBeds = gardenData.beds || [];
+  let defRowStart = 0;
+  if (curBeds.length > 0) {
+    defRowStart = (Math.max(...curBeds.map(b => b.row_end)) + 1 + 8) * 5;  // +8 = 40cmギャップ
+  }
+  const defRowEnd = Math.min(lenCm - 5, defRowStart + 80);
+
+  const c = document.getElementById('detailContent');
+  c.innerHTML = '';
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('detailSheet').classList.add('show');
+
+  const form = el('div', 'log-form');
+
+  // ── ヘッダー ──────────────────────────────────────────
+  const topRow = el('div', 'detail-top');
+  const titleWrap = el('div');
+  const title = el('div', 'log-form-title'); title.textContent = '畝を追加';
+  titleWrap.appendChild(title);
+  const closeBtn = el('button', 'btn-close'); closeBtn.textContent = '✕';
+  closeBtn.addEventListener('click', closeDetail);
+  topRow.appendChild(titleWrap); topRow.appendChild(closeBtn);
+  form.appendChild(topRow);
+
+  // ── 畝の名前 ─────────────────────────────────────────
+  const nameSec = el('div');
+  const nameLbl = el('div', 'form-label'); nameLbl.textContent = '畝の名前';
+  const nameInp = el('input');
+  nameInp.type = 'text'; nameInp.className = 'log-date-input';
+  nameInp.placeholder = '例：1番畝、北側の畝…';
+  nameSec.appendChild(nameLbl); nameSec.appendChild(nameInp);
+  form.appendChild(nameSec);
+
+  // ── 畝立て日 ─────────────────────────────────────────
+  const dateSec = el('div');
+  const dateLbl = el('div', 'form-label'); dateLbl.textContent = '畝立て日';
+  const dateInp = el('input');
+  dateInp.type = 'date'; dateInp.className = 'log-date-input';
+  dateInp.value = TODAY; dateInp.max = TODAY;
+  dateSec.appendChild(dateLbl); dateSec.appendChild(dateInp);
+  form.appendChild(dateSec);
+
+  // ── 位置・サイズ（inputs を先に定義してテンプレートと共有） ──
+  const inputs = {};
+  const posDefs = [
+    {key:'rowStart', label:'上端（上から）', val: defRowStart, max: lenCm - 5},
+    {key:'rowEnd',   label:'下端（上から）', val: defRowEnd,   max: lenCm - 5},
+    {key:'colStart', label:'左端（左から）', val: 0,           max: widCm - 5},
+    {key:'colEnd',   label:'右端（左から）', val: widCm - 5,   max: widCm - 5},
+  ];
+
+  // ── テンプレートを選ぶ ────────────────────────────────
+  const tmplSec = el('div');
+  const tmplLbl = el('div', 'form-label'); tmplLbl.textContent = 'テンプレートを選ぶ（任意）';
+  tmplSec.appendChild(tmplLbl);
+
+  // 年チップ
+  const yearChips = el('div', 'add-bed-tmpl-year-chips');
+  const mapWrap = el('div', 'add-bed-tmpl-map-wrap');
+  mapWrap.style.display = 'none';
+  const mapHint = el('div', 'add-bed-tmpl-hint');
+  mapHint.textContent = '畝をタップして選択';
+  mapHint.style.display = 'none';
+  const tmplInfo = el('div', 'add-bed-tmpl-info');
+  tmplInfo.style.display = 'none';
+
+  years.forEach(y => {
+    const chip = el('button', 'add-bed-tmpl-year-chip');
+    chip.type = 'button'; chip.textContent = `${y}年`;
+    chip.addEventListener('click', async () => {
+      yearChips.querySelectorAll('.add-bed-tmpl-year-chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+      tmplInfo.style.display = 'none';
+      mapWrap.innerHTML = '<div style="padding:12px;font-size:11px;color:#a79e88;text-align:center">読み込み中…</div>';
+      mapWrap.style.display = '';
+      mapHint.style.display = 'none';
+
+      const data = await fetch(`${API_STATE(S.areaId)}?year=${y}`).then(r => r.json());
+      mapWrap.innerHTML = '';
+
+      if (!data.beds || !data.beds.length) {
+        mapWrap.innerHTML = '<div style="padding:10px;font-size:11px;color:#a79e88;text-align:center">その年の畝はありません</div>';
+        return;
+      }
+
+      const svg = _buildTmplMap(area, data.beds, bed => {
+        const h = (bed.row_end - bed.row_start + 1) * 5;  // 縦（row方向）cm
+        const w = (bed.col_end - bed.col_start + 1) * 5;  // 横（col方向）cm
+        inputs.rowStart.value = bed.row_start * 5;
+        inputs.rowEnd.value   = bed.row_end   * 5;
+        inputs.colStart.value = bed.col_start * 5;
+        inputs.colEnd.value   = bed.col_end   * 5;
+        const nameEl = tmplInfo.querySelector('.tmpl-sel-name');
+        const subEl  = tmplInfo.querySelector('.add-bed-tmpl-info-sub');
+        nameEl.textContent = `「${bed.name}」を選択中`;
+        subEl.textContent  = `縦 ${h}cm × 横 ${w}cm`;
+        tmplInfo.style.display = 'flex';
+        setTimeout(() => posSec.scrollIntoView({block:'nearest', behavior:'smooth'}), 80);
+      });
+      mapWrap.appendChild(svg);
+      mapHint.style.display = '';
+    });
+    yearChips.appendChild(chip);
+  });
+
+  const nameEl = el('span', 'tmpl-sel-name');
+  const subEl  = el('span', 'add-bed-tmpl-info-sub');
+  tmplInfo.appendChild(nameEl); tmplInfo.appendChild(subEl);
+
+  tmplSec.appendChild(yearChips);
+  tmplSec.appendChild(mapWrap);
+  tmplSec.appendChild(mapHint);
+  tmplSec.appendChild(tmplInfo);
+  form.appendChild(tmplSec);
+
+  // ── 位置・サイズ入力 ─────────────────────────────────
+  const posSec = el('div');
+  const posLbl = el('div', 'form-label'); posLbl.textContent = '位置とサイズ（cm）';
+  const posHint = el('div', 'add-bed-pos-hint');
+  posHint.textContent = `畑全体: 縦${lenCm}cm × 横${widCm}cm　上・左が 0cm`;
+  const posGrid = el('div', 'add-bed-pos-grid');
+  posSec.appendChild(posLbl); posSec.appendChild(posHint); posSec.appendChild(posGrid);
+
+  posDefs.forEach(({key, label, val, max}) => {
+    const row = el('div', 'plant-range-row');
+    const lbl = el('span', 'plant-range-label'); lbl.textContent = label;
+    const inp = el('input');
+    inp.type = 'number'; inp.className = 'plant-range-input';
+    inp.min = 0; inp.max = max; inp.step = 5; inp.value = val;
+    const unit = el('span', 'plant-range-unit'); unit.textContent = 'cm';
+    row.appendChild(lbl); row.appendChild(inp); row.appendChild(unit);
+    posGrid.appendChild(row);
+    inputs[key] = inp;
+  });
+  form.appendChild(posSec);
+
+  // ── 追加ボタン ────────────────────────────────────────
+  const submitBtn = el('button', 'log-submit');
+  submitBtn.textContent = '追加する';
+  submitBtn.addEventListener('click', async () => {
+    const name = nameInp.value.trim();
+    if (!name) { nameInp.focus(); return; }
+    submitBtn.disabled = true;
+    try {
+      const res = await fetch(API_BED_ADD(area.id), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+        body: JSON.stringify({
+          name,
+          created_at:   dateInp.value,
+          row_start_cm: parseInt(inputs.rowStart.value) || 0,
+          row_end_cm:   parseInt(inputs.rowEnd.value)   || 80,
+          col_start_cm: parseInt(inputs.colStart.value) || 0,
+          col_end_cm:   parseInt(inputs.colEnd.value)   || widCm - 10,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      closeDetail();
+      await loadGardenTab();
+    } catch {
+      submitBtn.disabled = false;
+      alert('保存に失敗しました。');
+    }
+  });
+  form.appendChild(submitBtn);
+
+  c.appendChild(form);
+}
+
+// ══════════════════════════════════════════════════════
 // ── Plant form ────────────────────────────────────────
 // ══════════════════════════════════════════════════════
 let _ps = {};  // plant state
@@ -1274,8 +1568,8 @@ async function openPlantForm(bed, dateStr) {
   form.appendChild(title);
 
   // 畝サイズ表示
-  const bedLen = (bed.row_end - bed.row_start + 1) * 10;
-  const bedWid = (bed.col_end - bed.col_start + 1) * 10;
+  const bedLen = (bed.row_end - bed.row_start + 1) * 5;
+  const bedWid = (bed.col_end - bed.col_start + 1) * 5;
   const bedInfo = el('div', 'plant-bed-info');
   bedInfo.textContent = `${bed.name}　${bedLen}cm × ${bedWid}cm`;
   form.appendChild(bedInfo);
@@ -1375,16 +1669,16 @@ function _buildPlantRangeSec(sec, bed, bedLen) {
 
 function _buildIndividualSec(sec, bed, bedLen) {
   const vt = _ps.vt;
-  const spacingCells = Math.max(1, Math.round(vt.spacing_cm / 10));
+  const spacingCells = Math.max(1, Math.round(vt.spacing_cm / 5));
 
   // 開始位置
   const startRow = el('div', 'plant-range-row');
   const startLbl = el('span', 'plant-range-label'); startLbl.textContent = '開始位置';
   const startInp = el('input');
   startInp.type = 'number'; startInp.className = 'plant-range-input';
-  startInp.min = 0; startInp.max = Math.max(0, bedLen - 10); startInp.step = 10; startInp.value = 0;
+  startInp.min = 0; startInp.max = Math.max(0, bedLen - 5); startInp.step = 5; startInp.value = 0;
   const startUnit = el('span', 'plant-range-unit');
-  startUnit.textContent = `cm（0〜${bedLen - 10}cm）`;
+  startUnit.textContent = `cm（0〜${bedLen - 5}cm）`;
   startRow.appendChild(startLbl); startRow.appendChild(startInp); startRow.appendChild(startUnit);
   sec.appendChild(startRow);
 
@@ -1417,7 +1711,7 @@ function _buildIndividualSec(sec, bed, bedLen) {
   }
 
   function calcPositions() {
-    const startGrid = Math.floor((parseInt(startInp.value) || 0) / 10);
+    const startGrid = Math.floor((parseInt(startInp.value) || 0) / 5);
     return Array.from({length: _ps.plantCount}, (_, i) => startGrid + i * spacingCells);
   }
 
@@ -1434,7 +1728,7 @@ function _buildIndividualSec(sec, bed, bedLen) {
       const dot  = el('div', 'plant-prev-dot');
       dot.style.background = vt.family_color;
       const lbl  = el('div', 'plant-prev-lbl');
-      lbl.textContent = `${p * 10 - bed.row_start * 10}cm`;
+      lbl.textContent = `${p * 5 - bed.row_start * 5}cm`;
       item.appendChild(dot); item.appendChild(lbl);
       preview.appendChild(item);
     });
@@ -1454,7 +1748,7 @@ function _buildAreaSec(sec, bed, bedLen) {
     const lbl = el('span', 'plant-range-label'); lbl.textContent = labelText;
     const inp = el('input');
     inp.type = 'number'; inp.className = 'plant-range-input';
-    inp.min = 0; inp.max = maxVal; inp.step = 10; inp.value = defaultVal;
+    inp.min = 0; inp.max = maxVal; inp.step = 5; inp.value = defaultVal;
     const unit = el('span', 'plant-range-unit'); unit.textContent = unitText;
     inp.addEventListener('input', () => onChange(parseInt(inp.value) || 0));
     row.appendChild(lbl); row.appendChild(inp); row.appendChild(unit);
@@ -1462,9 +1756,9 @@ function _buildAreaSec(sec, bed, bedLen) {
   };
 
   makeRow('開始位置', 0, bedLen, 'cm',
-    v => { _ps.rsOff = Math.floor(v / 10); });
+    v => { _ps.rsOff = Math.floor(v / 5); });
   makeRow('終了位置', bedLen, bedLen, `cm（最大 ${bedLen}cm）`,
-    v => { _ps.reOff = Math.floor(v / 10); });
+    v => { _ps.reOff = Math.floor(v / 5); });
 }
 
 async function _doPlant() {
@@ -1518,9 +1812,9 @@ function _buildAdjPanel(title, isOpen, onToggle, buildBody) {
     onToggle(next);
   });
 
-  buildBody(body);
   panel.appendChild(toggle);
   panel.appendChild(body);
+  buildBody(body);  // body が panel に追加された後なので body.parentElement = panel
   return panel;
 }
 
@@ -1562,18 +1856,40 @@ function _mkEdgeGrid(onEdge) {
   return grid;
 }
 
-function renderBedAdjPanel(bedId, dateStr) {
+function _mkPosDisplay(row_start, row_end, col_start, col_end) {
+  const table = el('div', 'adj-pos-table');
+  const kv = (k, v) => {
+    const d = el('div', 'adj-pos-kv');
+    const kEl = el('span', 'adj-pos-k'); kEl.textContent = k;
+    const vEl = el('span', 'adj-pos-v'); vEl.textContent = v;
+    d.appendChild(kEl); d.appendChild(vEl);
+    return d;
+  };
+  const h = (row_end - row_start + 1) * 5;
+  const w = (col_end - col_start + 1) * 5;
+  table.appendChild(kv('上端', `${row_start * 5}cm`));
+  table.appendChild(kv('縦',   `${h}cm`));
+  table.appendChild(kv('左端', `${col_start * 5}cm`));
+  table.appendChild(kv('横',   `${w}cm`));
+  return table;
+}
+
+function renderBedAdjPanel(bed, dateStr) {
   return _buildAdjPanel('位置・サイズを調整', _adjOpen, v => { _adjOpen = v; }, body => {
+    body.parentElement.insertBefore(
+      _mkPosDisplay(bed.row_start, bed.row_end, bed.col_start, bed.col_end),
+      body
+    );
     // Move
-    const moveLbl = el('div', 'adj-group-label'); moveLbl.textContent = '移動（10cm ずつ）';
+    const moveLbl = el('div', 'adj-group-label'); moveLbl.textContent = '移動（5cm ずつ）';
     body.appendChild(moveLbl);
 
     const moveCropsChk = el('input');
     moveCropsChk.type = 'checkbox'; moveCropsChk.checked = true;
-    moveCropsChk.id = `mc-${bedId}`;
+    moveCropsChk.id = `mc-${bed.id}`;
 
     body.appendChild(_mkMoveGrid((dr, dc) =>
-      adjBed(bedId, {dr, dc, move_crops: moveCropsChk.checked}, dateStr)
+      adjBed(bed.id, {dr, dc, move_crops: moveCropsChk.checked}, dateStr)
     ));
 
     const optRow = el('div', 'adj-move-opt');
@@ -1587,22 +1903,26 @@ function renderBedAdjPanel(bedId, dateStr) {
     resizeLbl.style.marginTop = '4px';
     resizeLbl.textContent = '辺を移動（＋で外へ・−で内へ）';
     body.appendChild(resizeLbl);
-    body.appendChild(_mkEdgeGrid((key, val) => adjBed(bedId, {[key]: val}, dateStr)));
+    body.appendChild(_mkEdgeGrid((key, val) => adjBed(bed.id, {[key]: val}, dateStr)));
   });
 }
 
-function renderCropAdjPanel(cropId, bedId, dateStr) {
-  return _buildAdjPanel('植わっている範囲を調整', !!_cropAdjOpen[cropId],
-    v => { _cropAdjOpen[cropId] = v; }, body => {
-      const moveLbl = el('div', 'adj-group-label'); moveLbl.textContent = '移動（10cm ずつ）';
+function renderCropAdjPanel(crop, bedId, dateStr) {
+  return _buildAdjPanel('植わっている範囲を調整', !!_cropAdjOpen[crop.id],
+    v => { _cropAdjOpen[crop.id] = v; }, body => {
+      body.parentElement.insertBefore(
+        _mkPosDisplay(crop.row_start, crop.row_end, crop.col_start, crop.col_end),
+        body
+      );
+      const moveLbl = el('div', 'adj-group-label'); moveLbl.textContent = '移動（5cm ずつ）';
       body.appendChild(moveLbl);
-      body.appendChild(_mkMoveGrid((dr, dc) => adjCrop(cropId, {dr, dc}, bedId, dateStr)));
+      body.appendChild(_mkMoveGrid((dr, dc) => adjCrop(crop.id, {dr, dc}, bedId, dateStr)));
 
       const resizeLbl = el('div', 'adj-group-label');
       resizeLbl.style.marginTop = '4px';
       resizeLbl.textContent = '辺を移動（＋で外へ・−で内へ）';
       body.appendChild(resizeLbl);
-      body.appendChild(_mkEdgeGrid((key, val) => adjCrop(cropId, {[key]: val}, bedId, dateStr)));
+      body.appendChild(_mkEdgeGrid((key, val) => adjCrop(crop.id, {[key]: val}, bedId, dateStr)));
     }
   );
 }
@@ -1796,7 +2116,7 @@ function renderCropSection(crop, bedId, dateStr, allCrops) {
   section.appendChild(harvestRow);
 
   // 作物の範囲調整パネル
-  section.appendChild(renderCropAdjPanel(crop.id, bedId, dateStr));
+  section.appendChild(renderCropAdjPanel(crop, bedId, dateStr));
 
   return section;
 }
@@ -1947,7 +2267,7 @@ function renderDetail(data) {
   }
 
   // 畝の位置・サイズ調整パネル
-  body.appendChild(renderBedAdjPanel(data.bed.id, data.date));
+  body.appendChild(renderBedAdjPanel(data.bed, data.date));
 
   // 畝を撤去（まだ撤去されていない場合のみ）
   if (!data.bed.deleted_at) {
