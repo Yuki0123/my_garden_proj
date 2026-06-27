@@ -40,6 +40,13 @@ html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-
 .app-date-block{text-align:right;line-height:1.15}
 .app-date-label{font-size:9px;color:#a79e88;letter-spacing:.06em;font-weight:600}
 .app-date-val{font-size:12px;color:#6b6655;font-weight:700}
+.app-user-row{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-bottom:4px}
+.app-user-name{font-size:10px;color:#6b6655;font-weight:700}
+.btn-logout{
+  background:none;border:none;padding:0;
+  font-size:10px;color:#a79e88;font-weight:600;
+  cursor:pointer;font-family:inherit;text-decoration:underline;
+}
 
 /* ─── Year scrubber ─── */
 .scrub-wrap{padding:4px 16px 6px;flex-shrink:0}
@@ -303,9 +310,18 @@ html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-
 
 .rot-block{border-radius:14px;padding:12px 13px}
 .rot-head{display:flex;align-items:center;gap:7px;margin-bottom:6px}
-.rot-dot-lg{width:10px;height:10px;border-radius:50%}
+.rot-dot-lg{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .rot-title{font-size:12px;font-weight:700;color:#33302a}
+.rot-sub{font-size:10px;color:#8a8067;font-weight:600;margin-left:auto;white-space:nowrap}
 .rot-msg{font-size:12px;color:#5a5446;line-height:1.55}
+.rot-conflict-list{display:flex;flex-direction:column;gap:5px}
+.rot-conflict-row{display:grid;grid-template-columns:3.2em 1fr auto;align-items:center;gap:6px}
+.rot-conflict-year{font-size:10px;color:#8a8067;font-weight:700;white-space:nowrap}
+.rot-conflict-name{font-size:11px;font-weight:700;color:#33302a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rot-conflict-right{display:flex;align-items:center;gap:5px}
+.rot-conflict-bar-wrap{width:52px;height:5px;border-radius:3px;background:rgba(0,0,0,0.1);overflow:hidden;flex-shrink:0}
+.rot-conflict-bar{height:100%;border-radius:3px}
+.rot-conflict-pct{font-size:10px;font-weight:700;color:#8a8067;white-space:nowrap;min-width:2.8em;text-align:right}
 
 .section-title{font-size:11px;font-weight:700;color:#8a8067;margin-bottom:7px}
 .history-cells{display:flex;gap:7px}
@@ -318,6 +334,7 @@ html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-
 .log-list{display:flex;flex-direction:column}
 .log-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #ece5d3}
 .log-when{font-size:11px;color:#a79e88;width:50px;flex-shrink:0;font-weight:600}
+.log-user{font-size:10px;color:#b3aa92;font-weight:600;white-space:nowrap;flex-shrink:0;align-self:center}
 .log-task{font-size:11px;color:#6b6655;font-weight:700;white-space:nowrap}
 .log-note{font-size:12px;color:#4a4639;flex:1}
 
@@ -423,6 +440,20 @@ html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-
   background:none;border:none;color:#a79e88;font-size:12px;
   cursor:pointer;font-family:inherit;padding:4px;white-space:nowrap;
 }
+.harvest-batch-row{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.harvest-batch-chk{width:15px;height:15px;cursor:pointer;accent-color:var(--accent);flex-shrink:0}
+.harvest-batch-label{font-size:12px;color:#6b6655;font-weight:600;cursor:pointer;line-height:1.4}
+
+.bed-remove-row{
+  margin-top:18px;padding-top:14px;border-top:1px solid #ece5d3;
+  display:flex;flex-direction:column;gap:8px;
+}
+.btn-bed-remove{
+  align-self:flex-start;
+  background:none;border:1px solid #c9a080;color:#8a5e3a;
+  border-radius:9px;padding:6px 14px;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:inherit;
+}
 </style>
 </head>
 <body>
@@ -435,6 +466,13 @@ html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-
       <span class="app-logo-name">菜園手帖</span>
     </div>
     <div class="app-date-block">
+      <div class="app-user-row">
+        <span class="app-user-name">{{ request.user.get_short_name|default:request.user.username }}</span>
+        <form method="post" action="{% url 'logout' %}" style="display:contents">
+          {% csrf_token %}
+          <button type="submit" class="btn-logout">ログアウト</button>
+        </form>
+      </div>
       <div class="app-date-label">きょう</div>
       <div class="app-date-val" id="todayLabel"></div>
     </div>
@@ -513,7 +551,8 @@ const API_STATE  = id  => `/garden2/api/area/${id}/state/`;
 const API_DATES  = id  => `/garden2/api/area/${id}/dates/`;
 const API_DETAIL = id  => `/garden2/api/bed/${id}/detail/`;
 const API_LOG     = id  => `/garden2/api/bed/${id}/log/`;
-const API_HARVEST = id  => `/garden2/api/crop/${id}/harvest/`;
+const API_HARVEST    = id => `/garden2/api/crop/${id}/harvest/`;
+const API_BED_REMOVE = id => `/garden2/api/bed/${id}/remove/`;
 
 // ── App state ──────────────────────────────────────────
 let S = {
@@ -691,13 +730,13 @@ function switchTab(tab) {
 
   if (tab === 'compare') {
     if (S.year === TODAY_YEAR) S.year = TODAY_YEAR - 1;
-    loadCompare();
+    loadCompare().then(scrollTop);
   } else if (tab === 'timeline') {
     S.year = TODAY_YEAR;
-    loadTimeline();
+    loadTimeline().then(scrollTop);
   } else {
     S.year = TODAY_YEAR;
-    loadGardenTab();
+    loadGardenTab().then(scrollTop);
   }
 }
 
@@ -716,7 +755,6 @@ async function loadGardenMap(dateStr) {
   buildYearChips(data.available_years);
   updateScrubCaption();
   renderGarden(data);
-  scrollTop();
 }
 
 // ── Load compare ───────────────────────────────────────
@@ -731,7 +769,6 @@ async function loadCompare() {
   buildYearChips(now.available_years);
   updateScrubCaption();
   renderCompare(now, past);
-  scrollTop();
 }
 
 // ── Load timeline ──────────────────────────────────────
@@ -746,7 +783,6 @@ async function loadTimeline() {
   buildYearChips(years);
   updateScrubCaption();
   renderTimeline(years, allData);
-  scrollTop();
 }
 
 function scrollTop() {
@@ -800,6 +836,58 @@ function renderGarden(data) {
 
   const woodV = 'repeating-linear-gradient(90deg,#cdb083 0,#cdb083 4px,#bb9e6c 4px,#bb9e6c 5px)';
   const woodH = 'repeating-linear-gradient(0deg,#cdb083 0,#cdb083 4px,#bb9e6c 4px,#bb9e6c 5px)';
+
+  // SVGグリッド＋目盛り（畝ボタンの下に描画）
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${area.cols} ${area.rows}`);
+  svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none';
+
+  const mkLine = (x1, y1, x2, y2, stroke, sw) => {
+    const l = document.createElementNS(ns, 'line');
+    l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+    l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+    l.setAttribute('stroke', stroke);
+    l.setAttribute('stroke-width', sw);
+    svg.appendChild(l);
+  };
+
+  // 縦グリッド（1mごと = 10マスごと）
+  for (let c = 10; c < area.cols; c += 10) {
+    mkLine(c, 0, c, area.rows, 'rgba(0,0,0,0.07)', '0.25');
+  }
+  // 横グリッド（1mごと = 10マスごと）
+  for (let r = 10; r < area.rows; r += 10) {
+    mkLine(0, r, area.cols, r, 'rgba(0,0,0,0.07)', '0.25');
+  }
+
+  // 3m目盛りラベル（左端）
+  for (let r = 0; r <= area.rows; r += 30) {
+    const isFirst = r === 0;
+    const isLast  = r === area.rows;
+    const labelY  = isFirst ? r + 0.4 : isLast ? r - 2.8 : r - 1.2;
+    // 背景
+    const bg = document.createElementNS(ns, 'rect');
+    bg.setAttribute('x', '0.4'); bg.setAttribute('y', String(labelY));
+    bg.setAttribute('width', '5.5'); bg.setAttribute('height', '2.4');
+    bg.setAttribute('rx', '0.7');
+    bg.setAttribute('fill', 'rgba(246,242,232,0.82)');
+    svg.appendChild(bg);
+    // テキスト
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', '3.2');
+    txt.setAttribute('y', String(labelY + 1.2));
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('dominant-baseline', 'middle');
+    txt.setAttribute('font-size', '1.9');
+    txt.setAttribute('font-family', 'sans-serif');
+    txt.setAttribute('font-weight', '700');
+    txt.setAttribute('fill', 'rgba(80,58,28,0.65)');
+    txt.textContent = `${r / 10}m`;
+    svg.appendChild(txt);
+  }
+
+  map.appendChild(svg);
 
   data.beds.forEach(bed => {
     const btn = el('button', bed.crop ? 'bed-btn' : 'bed-btn empty');
@@ -1064,7 +1152,7 @@ function closeDetail() {
   document.getElementById('detailSheet').classList.remove('show');
 }
 
-function renderCropSection(crop, bedId, dateStr) {
+function renderCropSection(crop, bedId, dateStr, allCrops) {
   const section = el('div', 'crop-section');
   // 作物ヘッダー
   const head = el('div', 'crop-section-head');
@@ -1105,20 +1193,52 @@ function renderCropSection(crop, bedId, dateStr) {
   // 連作チェック
   const rot = crop.rotation;
   if (rot && rot.level !== 'none') {
-    const rc = ROT_COLOR[rot.level] || ROT_COLOR.none;
+    const rc = ROT_COLOR[rot.level] || ROT_COLOR.ok;
     const rotBlock = el('div', 'rot-block');
     rotBlock.style.cssText = `background:${rc.bg};border:1px solid ${rc.c}40`;
     const rotHead = el('div', 'rot-head');
     const rotDot = el('span', 'rot-dot-lg');
     rotDot.style.background = rc.c;
+    rotHead.appendChild(rotDot);
     const rotTitle = el('span', 'rot-title');
-    rotTitle.textContent = '連作チェック';
-    rotHead.appendChild(rotDot); rotHead.appendChild(rotTitle);
-    const rotMsg = el('div', 'rot-msg');
-    rotMsg.textContent = rot.msg;
-    rotBlock.appendChild(rotHead); rotBlock.appendChild(rotMsg);
+    rotHead.appendChild(rotTitle);
+    if (rot.level === 'ok') {
+      rotTitle.textContent = '連作チェック';
+      rotBlock.appendChild(rotHead);
+      const rotMsg = el('div', 'rot-msg');
+      rotMsg.textContent = '過去数年に同じ科の栽培はありません。輪作は良好です。';
+      rotBlock.appendChild(rotMsg);
+    } else {
+      rotTitle.textContent = `連作注意（${rot.family}）`;
+      const rotSub = el('span', 'rot-sub');
+      rotSub.textContent = `回避推奨 ${rot.rotation_years}年`;
+      rotHead.appendChild(rotSub);
+      rotBlock.appendChild(rotHead);
+      const list = el('div', 'rot-conflict-list');
+      (rot.conflicts || []).forEach(cf => {
+        const row = el('div', 'rot-conflict-row');
+        const yr = el('span', 'rot-conflict-year');
+        yr.textContent = `${cf.year}年`;
+        const nm = el('span', 'rot-conflict-name');
+        nm.textContent = cf.name;
+        const right = el('div', 'rot-conflict-right');
+        const bw = el('div', 'rot-conflict-bar-wrap');
+        const bar = el('div', 'rot-conflict-bar');
+        bar.style.cssText = `width:${cf.pct}%;background:${rc.c}`;
+        bw.appendChild(bar);
+        const pct = el('span', 'rot-conflict-pct');
+        pct.textContent = `${cf.pct}%`;
+        right.appendChild(bw); right.appendChild(pct);
+        row.appendChild(yr); row.appendChild(nm); row.appendChild(right);
+        list.appendChild(row);
+      });
+      rotBlock.appendChild(list);
+    }
     section.appendChild(rotBlock);
   }
+
+  // 同じ野菜の他の株
+  const sameCrops = (allCrops || []).filter(c => c.name === crop.name && c.id !== crop.id);
 
   // 収穫・撤去ボタン
   const harvestRow = el('div', 'harvest-row');
@@ -1127,6 +1247,24 @@ function renderCropSection(crop, bedId, dateStr) {
   harvestBtn.addEventListener('click', () => {
     harvestBtn.style.display = 'none';
     const form = el('div', 'harvest-form');
+
+    // まとめ撤去チェックボックス（同名の株が他にある場合のみ）
+    let batchChk = null;
+    if (sameCrops.length > 0) {
+      const batchRow = el('div', 'harvest-batch-row');
+      batchChk = el('input');
+      batchChk.type = 'checkbox';
+      batchChk.id = `batch-${crop.id}`;
+      batchChk.className = 'harvest-batch-chk';
+      const batchLbl = el('label');
+      batchLbl.htmlFor = `batch-${crop.id}`;
+      batchLbl.className = 'harvest-batch-label';
+      batchLbl.textContent = `この畝の${crop.name}（${sameCrops.length + 1}株）をまとめて撤去`;
+      batchRow.appendChild(batchChk);
+      batchRow.appendChild(batchLbl);
+      form.appendChild(batchRow);
+    }
+
     const lbl = el('span', 'harvest-form-label');
     lbl.textContent = '収穫日・撤去日';
     const dateInput = el('input');
@@ -1134,17 +1272,24 @@ function renderCropSection(crop, bedId, dateStr) {
     dateInput.className = 'harvest-date-input';
     dateInput.value = TODAY;
     dateInput.max = TODAY;
+    form.appendChild(lbl);
+    form.appendChild(dateInput);
+
     const confirmBtn = el('button', 'btn-harvest-confirm');
     confirmBtn.textContent = '確定';
     confirmBtn.addEventListener('click', async () => {
       confirmBtn.disabled = true;
       try {
-        const res = await fetch(API_HARVEST(crop.id), {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
-          body: JSON.stringify({harvested_at: dateInput.value}),
-        });
-        if (!res.ok) throw new Error();
+        const ids = (batchChk && batchChk.checked)
+          ? [crop.id, ...sameCrops.map(c => c.id)]
+          : [crop.id];
+        await Promise.all(ids.map(id =>
+          fetch(API_HARVEST(id), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+            body: JSON.stringify({harvested_at: dateInput.value}),
+          }).then(r => { if (!r.ok) throw new Error(); })
+        ));
         await openDetail(bedId, dateStr);
       } catch {
         confirmBtn.disabled = false;
@@ -1157,8 +1302,6 @@ function renderCropSection(crop, bedId, dateStr) {
       form.remove();
       harvestBtn.style.display = '';
     });
-    form.appendChild(lbl);
-    form.appendChild(dateInput);
     form.appendChild(confirmBtn);
     form.appendChild(cancelBtn);
     harvestRow.appendChild(form);
@@ -1201,11 +1344,29 @@ function renderDetail(data) {
     left.appendChild(titleEl);
     left.appendChild(tags);
   } else {
-    titleEl.textContent = crops.map(cr => cr.name).join('・');
-    const mix = el('div', 'detail-mix-label');
-    mix.textContent = `${crops.length}種混植`;
-    left.appendChild(titleEl);
-    left.appendChild(mix);
+    const uniqueNames = [...new Set(crops.map(c => c.name))];
+    const isSameType = uniqueNames.length === 1;
+    if (isSameType) {
+      // 同じ野菜の個体植え複数株
+      titleEl.textContent = crops[0].name;
+      const tags = el('div', 'detail-tags');
+      const famTag = el('span', 'detail-fam-tag');
+      famTag.textContent = crops[0].family;
+      famTag.style.cssText = `color:${crops[0].family_color};background:${crops[0].family_tint}`;
+      tags.appendChild(famTag);
+      const countTag = el('span', 'detail-variety');
+      countTag.textContent = `${crops.length}株`;
+      tags.appendChild(countTag);
+      left.appendChild(titleEl);
+      left.appendChild(tags);
+    } else {
+      // 混植（異なる野菜）
+      titleEl.textContent = uniqueNames.join('・');
+      const mix = el('div', 'detail-mix-label');
+      mix.textContent = `${uniqueNames.length}種混植`;
+      left.appendChild(titleEl);
+      left.appendChild(mix);
+    }
   }
 
   if (crops.length === 0) left.appendChild(titleEl);
@@ -1226,7 +1387,7 @@ function renderDetail(data) {
   } else {
     crops.forEach((crop, idx) => {
       if (idx > 0) body.appendChild(el('div', 'crop-divider'));
-      body.appendChild(renderCropSection(crop, data.bed.id, data.date));
+      body.appendChild(renderCropSection(crop, data.bed.id, data.date, data.crops));
     });
   }
 
@@ -1270,6 +1431,11 @@ function renderDetail(data) {
       const note = el('span', 'log-note');
       note.textContent = lg.note;
       row.appendChild(when); row.appendChild(task); row.appendChild(note);
+      if (lg.user_name) {
+        const user = el('span', 'log-user');
+        user.textContent = lg.user_name;
+        row.appendChild(user);
+      }
       logList.appendChild(row);
     });
     logSec.appendChild(logTitle); logSec.appendChild(logList);
@@ -1288,6 +1454,55 @@ function renderDetail(data) {
     const plantBtn = el('button', 'btn-primary');
     plantBtn.textContent = 'この畝に植える';
     body.appendChild(plantBtn);
+  }
+
+  // 畝を撤去（まだ撤去されていない場合のみ）
+  if (!data.bed.deleted_at) {
+    const removeRow = el('div', 'bed-remove-row');
+    const removeBtn = el('button', 'btn-bed-remove');
+    removeBtn.textContent = '畝を撤去';
+    removeBtn.addEventListener('click', () => {
+      removeBtn.style.display = 'none';
+      const form = el('div', 'harvest-form');
+      const lbl = el('span', 'harvest-form-label');
+      lbl.textContent = '撤去日';
+      const dateInput = el('input');
+      dateInput.type = 'date';
+      dateInput.className = 'harvest-date-input';
+      dateInput.value = TODAY;
+      dateInput.max = TODAY;
+      const confirmBtn = el('button', 'btn-harvest-confirm');
+      confirmBtn.textContent = '撤去を確定';
+      confirmBtn.addEventListener('click', async () => {
+        confirmBtn.disabled = true;
+        try {
+          const res = await fetch(API_BED_REMOVE(data.bed.id), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+            body: JSON.stringify({deleted_at: dateInput.value}),
+          });
+          if (!res.ok) throw new Error();
+          closeDetail();
+          loadGardenTab();
+        } catch {
+          confirmBtn.disabled = false;
+          alert('保存に失敗しました。');
+        }
+      });
+      const cancelBtn = el('button', 'btn-harvest-cancel');
+      cancelBtn.textContent = 'キャンセル';
+      cancelBtn.addEventListener('click', () => {
+        form.remove();
+        removeBtn.style.display = '';
+      });
+      form.appendChild(lbl);
+      form.appendChild(dateInput);
+      form.appendChild(confirmBtn);
+      form.appendChild(cancelBtn);
+      removeRow.appendChild(form);
+    });
+    removeRow.appendChild(removeBtn);
+    body.appendChild(removeRow);
   }
 
   c.appendChild(body);

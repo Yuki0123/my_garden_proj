@@ -26,59 +26,57 @@ def _family_colors(family):
     return {'color': color, 'tint': _tint(color)}
 
 
-def _rotation_check(area, bed, current_crop, year):
-    if not current_crop:
-        return {'level': 'none', 'msg': ''}
+def _rotation_check(area, crop, year):
+    """作物の座標と過去作物の重複面積から連作リスクを判定する。"""
+    if not crop:
+        return {'level': 'none', 'conflicts': []}
 
-    fam = current_crop.vegetable_type.family
+    fam = crop.vegetable_type.family
     fam_name = fam.name
-    rot_years = current_crop.vegetable_type.rotation_years
+    rot_years = crop.vegetable_type.rotation_years
+    since = date(year - rot_years, 1, 1)
 
-    streak = 0
-    for y in range(year - 1, year - rot_years - 1, -1):
-        same = Crop.objects.filter(
-            area=area,
-            vegetable_type__family=fam,
-            planted_at__year=y,
-            row_start__lte=bed.row_end,
-            row_end__gte=bed.row_start,
-            col_start__lte=bed.col_end,
-            col_end__gte=bed.col_start,
-        )
-        if same.exists():
-            streak += 1
-        else:
-            break
-
-    total = streak + 1
-    if total >= rot_years:
-        return {
-            'level': 'high',
-            'msg': f'{fam_name}を{total}年続けて栽培しています。連作障害のリスク大。{rot_years}〜{rot_years + 1}年は別の科をはさみましょう。',
-        }
-    if total >= 2:
-        return {
-            'level': 'mid',
-            'msg': f'{fam_name}が{total}年連続です。来季は別の科に切り替えると安心です。',
-        }
-
-    near = Crop.objects.filter(
+    past = Crop.objects.filter(
         area=area,
         vegetable_type__family=fam,
-        planted_at__gte=date(year - 3, 1, 1),
+        planted_at__gte=since,
         planted_at__lt=date(year, 1, 1),
-        row_start__lte=bed.row_end,
-        row_end__gte=bed.row_start,
-        col_start__lte=bed.col_end,
-        col_end__gte=bed.col_start,
-    )
-    if near.exists():
-        return {
-            'level': 'low',
-            'msg': f'数年内に{fam_name}を栽培しています。やや間隔を意識すると良いでしょう。',
-        }
+        row_start__lte=crop.row_end,
+        row_end__gte=crop.row_start,
+        col_start__lte=crop.col_end,
+        col_end__gte=crop.col_start,
+    ).exclude(id=crop.id).select_related('vegetable_type').order_by('-planted_at')
 
-    return {'level': 'ok', 'msg': '過去数年に同じ科の栽培はありません。輪作は良好です。'}
+    crop_area = (crop.row_end - crop.row_start + 1) * (crop.col_end - crop.col_start + 1)
+
+    # (year, name) → 最大重複率
+    seen: dict[tuple, int] = {}
+    for p in past:
+        ov_r = max(0, min(crop.row_end, p.row_end) - max(crop.row_start, p.row_start) + 1)
+        ov_c = max(0, min(crop.col_end, p.col_end) - max(crop.col_start, p.col_start) + 1)
+        pct = round(ov_r * ov_c / crop_area * 100) if crop_area > 0 else 0
+        if pct <= 0:
+            continue
+        key = (p.planted_at.year, p.vegetable_type.name)
+        seen[key] = max(seen.get(key, 0), pct)
+
+    if not seen:
+        return {'level': 'ok', 'family': fam_name, 'rotation_years': rot_years, 'conflicts': []}
+
+    conflicts = [
+        {'year': y, 'name': n, 'pct': p}
+        for (y, n), p in sorted(seen.items(), key=lambda x: -x[0][0])
+    ]
+
+    years_ago = year - conflicts[0]['year']
+    level = 'high' if years_ago <= 1 else ('mid' if years_ago <= 2 else 'low')
+
+    return {
+        'level': level,
+        'family': fam_name,
+        'rotation_years': rot_years,
+        'conflicts': conflicts,
+    }
 
 
 def _progress(crop):
@@ -191,7 +189,7 @@ def state_api(request, area_id):
     for bed in beds:
         bed_crops = _crops_in_bed(bed, crops_list)
         primary = bed_crops[0] if bed_crops else None
-        rot = _rotation_check(area, bed, primary, year) if primary else {'level': 'none', 'msg': ''}
+        rot = _rotation_check(area, primary, year) if primary else {'level': 'none', 'conflicts': []}
         beds_data.append({
             'id': bed.id,
             'name': bed.name,
@@ -332,7 +330,7 @@ def bed_detail_api(request, bed_id):
     crops_data = []
     for c in active_crops:
         serialized = _serialize_crop(c)
-        serialized['rotation'] = _rotation_check(area, bed, c, year)
+        serialized['rotation'] = _rotation_check(area, c, year)
         crops_data.append(serialized)
 
     # History: その年の年末（または今日）時点の作物を過去5年分
@@ -361,12 +359,13 @@ def bed_detail_api(request, bed_id):
             'family_tint': fc['tint'] if fc else None,
         })
 
-    logs = MaintenanceLog.objects.filter(bed=bed).order_by('-worked_at')[:8]
+    logs = MaintenanceLog.objects.filter(bed=bed).select_related('user').order_by('-worked_at')[:8]
     logs_data = [
         {
             'when': log.worked_at.strftime('%m/%d'),
             'task': log.get_task_type_display(),
             'note': log.note,
+            'user_name': (log.user.get_short_name() or log.user.username) if log.user else None,
         }
         for log in logs
     ]
@@ -379,6 +378,7 @@ def bed_detail_api(request, bed_id):
             'col_start': bed.col_start,
             'row_end': bed.row_end,
             'col_end': bed.col_end,
+            'deleted_at': str(bed.deleted_at) if bed.deleted_at else None,
         },
         'year': year,
         'date': str(target_date),
@@ -447,4 +447,24 @@ def harvest_api(request, crop_id):
     crop.harvested_at = harvested_at
     crop.status = 'harvested'
     crop.save(update_fields=['harvested_at', 'status'])
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def bed_remove_api(request, bed_id):
+    bed = get_object_or_404(Bed, id=bed_id, area__owner=request.user)
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'invalid json'}, status=400)
+
+    date_str = body.get('deleted_at', str(date.today()))
+    try:
+        deleted_at = date.fromisoformat(date_str)
+    except ValueError:
+        deleted_at = date.today()
+
+    bed.deleted_at = deleted_at
+    bed.save(update_fields=['deleted_at'])
     return JsonResponse({'ok': True})
