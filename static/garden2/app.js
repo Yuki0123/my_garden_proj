@@ -16,11 +16,13 @@ const API_BED_PLANT   = id => `/garden2/api/bed/${id}/plant/`;
 const API_BED_ADD     = id => `/garden2/api/area/${id}/bed/add/`;
 const API_BED_UPDATE  = id => `/garden2/api/bed/${id}/update/`;
 const API_CROP_UPDATE = id => `/garden2/api/crop/${id}/update/`;
+const API_DAY_ACTIONS = id => `/garden2/api/area/${id}/day-actions/`;
 
 // ── Adjust panel open state ────────────────────────────
 let _adjOpen        = false;
 let _cropAdjOpen    = {};
 let _currentGarden  = null;  // renderGarden に渡された最新データ
+let _currentActions = null;  // 選択日付の日次アクション
 
 // ── App state ──────────────────────────────────────────
 let S = {
@@ -218,8 +220,13 @@ async function loadGardenTab() {
 // ── Load: 畑マップ（特定日付） ────────────────────────
 async function loadGardenMap(dateStr) {
   closeDetail();
-  const res  = await fetch(`${API_STATE(S.areaId)}?date=${dateStr}`);
-  const data = await res.json();
+  const [res, actRes] = await Promise.all([
+    fetch(`${API_STATE(S.areaId)}?date=${dateStr}`),
+    fetch(`${API_DAY_ACTIONS(S.areaId)}?date=${dateStr}`),
+  ]);
+  const data    = await res.json();
+  const actData = await actRes.json();
+  _currentActions = actData.actions;
   buildYearChips(data.available_years);
   updateScrubCaption();
   renderGarden(data);
@@ -260,6 +267,41 @@ function scrollTop() {
 }
 
 // ══════════════════════════════════════════════════════
+// ── Render: Day actions card ──────────────────────────
+// ══════════════════════════════════════════════════════
+function renderDayActions(actions, dateStr) {
+  if (!actions || !actions.length) return null;
+
+  const d = new Date(dateStr + 'T00:00:00');
+  const isToday = dateStr === TODAY;
+  const label = isToday ? '今日' : `${d.getMonth() + 1}/${d.getDate()}`;
+
+  const wrap = el('div', 'day-actions-wrap');
+  const lbl = el('span', 'day-actions-label');
+  lbl.textContent = label + '：';
+  wrap.appendChild(lbl);
+
+  actions.forEach(({bed, events}) => {
+    events.forEach(e => {
+      if (e.type === 'bed_added' || e.type === 'bed_removed') {
+        const chip = el('span', `day-actions-chip ${e.type === 'bed_added' ? 'bed-added' : 'bed-removed'}`);
+        chip.textContent = `${bed} ${e.type === 'bed_added' ? '新設' : '撤去'}`;
+        wrap.appendChild(chip);
+      } else if (e.type === 'planted' || e.type === 'harvested') {
+        const chip = el('span', `day-actions-chip ${e.type}`);
+        const dot = el('span', 'day-actions-dot');
+        dot.style.background = e.color;
+        chip.appendChild(dot);
+        chip.appendChild(document.createTextNode(`${bed}・${e.name} ${e.type === 'planted' ? '植付' : '収穫'}`));
+        wrap.appendChild(chip);
+      }
+    });
+  });
+
+  return wrap;
+}
+
+// ══════════════════════════════════════════════════════
 // ── Render: Garden map ────────────────────────────────
 // ══════════════════════════════════════════════════════
 function renderGarden(data) {
@@ -282,6 +324,10 @@ function renderGarden(data) {
       loadState();
     });
   }
+
+  // Day actions card
+  const actCard = renderDayActions(_currentActions, S.date);
+  if (actCard) content.appendChild(actCard);
 
   // Title row
   const titleRow = el('div', 'map-title-row');

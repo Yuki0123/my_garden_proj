@@ -219,6 +219,29 @@ html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-
   padding:6px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;
 }
 
+/* ─── Day Actions ─── */
+.day-actions-wrap{
+  display:flex;align-items:center;gap:6px;
+  overflow-x:auto;scrollbar-width:none;
+  padding:0 0 6px;margin-bottom:4px;
+}
+.day-actions-wrap::-webkit-scrollbar{display:none}
+.day-actions-label{
+  font-size:11px;font-weight:700;color:#a79e88;
+  white-space:nowrap;flex-shrink:0;
+}
+.day-actions-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 9px;border-radius:20px;
+  font-size:11px;font-weight:700;
+  white-space:nowrap;flex-shrink:0;
+}
+.day-actions-chip.planted{background:#e3f0da;color:#5d8a55}
+.day-actions-chip.harvested{background:#f1e7d2;color:#a07030}
+.day-actions-chip.bed-added{background:#e8eef5;color:#4a6f99}
+.day-actions-chip.bed-removed{background:#f9e8e4;color:#b3564a}
+.day-actions-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
 /* ─── Compare tab ─── */
 .compare-head{display:flex;gap:8px;padding:2px 4px 6px}
 .compare-col-head{flex:1;text-align:center}

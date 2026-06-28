@@ -657,6 +657,77 @@ def bed_plant_api(request, bed_id):
 
 
 @login_required
+def day_actions_api(request, area_id):
+    """指定日付にあった作業（畝の新設・撤去、作物の植付・収穫）を畝ごとにまとめて返す。"""
+    area = get_object_or_404(GardenArea, id=area_id, owner=request.user)
+    date_str = request.GET.get('date')
+    try:
+        target_date = date.fromisoformat(date_str) if date_str else date.today()
+    except ValueError:
+        target_date = date.today()
+
+    beds_added   = list(Bed.objects.filter(area=area, created_at=target_date).values('id', 'name'))
+    beds_removed = list(Bed.objects.filter(area=area, deleted_at=target_date).values('id', 'name'))
+
+    crops_planted  = list(
+        Crop.objects.filter(area=area, planted_at=target_date)
+        .select_related('vegetable_type', 'vegetable_type__family')
+    )
+    crops_harvested = list(
+        Crop.objects.filter(area=area, harvested_at=target_date)
+        .select_related('vegetable_type', 'vegetable_type__family')
+    )
+
+    # 作物をどの畝に属するか判定するために、その日付時点でアクティブな畝を取得
+    active_beds = list(Bed.objects.filter(
+        area=area,
+        created_at__lte=target_date,
+    ).filter(
+        Q(deleted_at__isnull=True) | Q(deleted_at__gte=target_date)
+    ))
+
+    def find_bed_name(crop):
+        for bed in active_beds:
+            if (crop.row_start <= bed.row_end and crop.row_end >= bed.row_start
+                    and crop.col_start <= bed.col_end and crop.col_end >= bed.col_start):
+                return bed.name
+        return None
+
+    bed_events = {}  # bed_name -> list of events
+
+    for b in beds_added:
+        bed_events.setdefault(b['name'], []).append({'type': 'bed_added'})
+
+    for b in beds_removed:
+        bed_events.setdefault(b['name'], []).append({'type': 'bed_removed'})
+
+    for crop in crops_planted:
+        key = find_bed_name(crop) or '（畝不明）'
+        fc = _family_colors(crop.vegetable_type.family)
+        bed_events.setdefault(key, []).append({
+            'type': 'planted',
+            'name': crop.vegetable_type.name,
+            'color': fc['color'],
+        })
+
+    for crop in crops_harvested:
+        key = find_bed_name(crop) or '（畝不明）'
+        fc = _family_colors(crop.vegetable_type.family)
+        bed_events.setdefault(key, []).append({
+            'type': 'harvested',
+            'name': crop.vegetable_type.name,
+            'color': fc['color'],
+        })
+
+    result = [
+        {'bed': bed_name, 'events': events}
+        for bed_name, events in sorted(bed_events.items())
+    ]
+
+    return JsonResponse({'date': str(target_date), 'actions': result})
+
+
+@login_required
 @require_POST
 def bed_add_api(request, area_id):
     area = get_object_or_404(GardenArea, id=area_id, owner=request.user)
