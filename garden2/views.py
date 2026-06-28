@@ -368,13 +368,13 @@ def bed_detail_api(request, bed_id):
             Q(harvested_at__isnull=True) | Q(harvested_at__gt=hist_date)
         ).select_related('vegetable_type', 'vegetable_type__family').order_by('planted_at')
 
-        crops_data = []
+        hist_crops = []
         for c in crops_in_year:
             ov_r = max(0, min(bed.row_end, c.row_end) - max(bed.row_start, c.row_start) + 1)
             ov_c = max(0, min(bed.col_end, c.col_end) - max(bed.col_start, c.col_start) + 1)
             overlap_pct = round(ov_r * ov_c / bed_area * 100) if bed_area > 0 else 100
             fc = _family_colors(c.vegetable_type.family)
-            crops_data.append({
+            hist_crops.append({
                 'name': c.vegetable_type.name,
                 'family_color': fc['color'],
                 'family_tint': fc['tint'],
@@ -385,7 +385,7 @@ def bed_detail_api(request, bed_id):
         history.append({
             'year': y,
             'is_current': y == year,
-            'crops': crops_data,
+            'crops': hist_crops,
         })
 
     logs = MaintenanceLog.objects.filter(bed=bed).select_related('user').order_by('-worked_at')[:8]
