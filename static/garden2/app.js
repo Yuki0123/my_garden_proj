@@ -14,6 +14,8 @@ const API_CROP_ADJUST = id => `/garden2/api/crop/${id}/adjust/`;
 const API_VEG_TYPES   = ()  => `/garden2/api/vegetable-types/`;
 const API_BED_PLANT   = id => `/garden2/api/bed/${id}/plant/`;
 const API_BED_ADD     = id => `/garden2/api/area/${id}/bed/add/`;
+const API_BED_UPDATE  = id => `/garden2/api/bed/${id}/update/`;
+const API_CROP_UPDATE = id => `/garden2/api/crop/${id}/update/`;
 
 // ── Adjust panel open state ────────────────────────────
 let _adjOpen        = false;
@@ -1129,6 +1131,155 @@ async function _doPlant() {
   }
 }
 
+// ── インライン日付エディタ ─────────────────────────────
+function _mkInlineDateEditor(label, initDate, onSave) {
+  const wrap = el('div');
+  let cur = initDate;
+
+  function showDisplay() {
+    wrap.innerHTML = '';
+    const row = el('div', 'inline-date-row');
+    const val = el('span', 'inline-date-val');
+    val.textContent = `${label}：${cur}`;
+    const btn = el('button', 'btn-inline-edit');
+    btn.type = 'button'; btn.textContent = '編集';
+    btn.addEventListener('click', showForm);
+    row.appendChild(val); row.appendChild(btn);
+    wrap.appendChild(row);
+  }
+
+  function showForm() {
+    wrap.innerHTML = '';
+    const form = el('div', 'inline-date-form');
+    const lbl = el('span', 'harvest-form-label'); lbl.textContent = label;
+    const inp = el('input');
+    inp.type = 'date'; inp.className = 'harvest-date-input';
+    inp.value = cur; inp.max = TODAY;
+    const saveBtn = el('button', 'btn-harvest-confirm');
+    saveBtn.type = 'button'; saveBtn.textContent = '保存';
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      try { await onSave(inp.value); cur = inp.value; } catch {}
+      showDisplay();
+    });
+    const cancelBtn = el('button', 'btn-harvest-cancel');
+    cancelBtn.type = 'button'; cancelBtn.textContent = 'キャンセル';
+    cancelBtn.addEventListener('click', showDisplay);
+    form.appendChild(lbl); form.appendChild(inp);
+    form.appendChild(saveBtn); form.appendChild(cancelBtn);
+    wrap.appendChild(form);
+  }
+
+  showDisplay();
+  return wrap;
+}
+
+// 品種など自由テキストのインライン編集
+function _mkInlineTextEditor(label, initVal, placeholder, onSave) {
+  const wrap = el('div');
+  let cur = initVal || '';
+
+  function showDisplay() {
+    wrap.innerHTML = '';
+    const row = el('div', 'inline-date-row');
+    const val = el('span', 'inline-date-val');
+    val.textContent = cur ? `${label}：${cur}` : `${label}：（未設定）`;
+    const btn = el('button', 'btn-inline-edit');
+    btn.type = 'button'; btn.textContent = '編集';
+    btn.addEventListener('click', showForm);
+    row.appendChild(val); row.appendChild(btn);
+    wrap.appendChild(row);
+  }
+
+  function showForm() {
+    wrap.innerHTML = '';
+    const form = el('div', 'inline-date-form');
+    const lbl = el('span', 'harvest-form-label'); lbl.textContent = label;
+    const inp = el('input');
+    inp.type = 'text'; inp.className = 'inline-edit-input';
+    inp.value = cur; inp.placeholder = placeholder || '';
+    const saveBtn = el('button', 'btn-harvest-confirm');
+    saveBtn.type = 'button'; saveBtn.textContent = '保存';
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      try { await onSave(inp.value.trim()); cur = inp.value.trim(); } catch {}
+      showDisplay();
+    });
+    const cancelBtn = el('button', 'btn-harvest-cancel');
+    cancelBtn.type = 'button'; cancelBtn.textContent = 'キャンセル';
+    cancelBtn.addEventListener('click', showDisplay);
+    form.appendChild(lbl); form.appendChild(inp);
+    form.appendChild(saveBtn); form.appendChild(cancelBtn);
+    wrap.appendChild(form);
+  }
+
+  showDisplay();
+  return wrap;
+}
+
+// 作物名（VegetableType）のインライン選択編集
+function _mkInlineVegTypeEditor(label, initId, initName, onSave) {
+  const wrap = el('div');
+  let curId = initId;
+  let curName = initName;
+
+  function showDisplay() {
+    wrap.innerHTML = '';
+    const row = el('div', 'inline-date-row');
+    const val = el('span', 'inline-date-val');
+    val.textContent = `${label}：${curName}`;
+    const btn = el('button', 'btn-inline-edit');
+    btn.type = 'button'; btn.textContent = '変更';
+    btn.addEventListener('click', showForm);
+    row.appendChild(val); row.appendChild(btn);
+    wrap.appendChild(row);
+  }
+
+  async function showForm() {
+    wrap.innerHTML = '';
+    const loading = el('span', 'inline-date-val');
+    loading.textContent = '読み込み中…';
+    wrap.appendChild(loading);
+
+    const {families} = await fetch(API_VEG_TYPES()).then(r => r.json());
+
+    wrap.innerHTML = '';
+    const form = el('div', 'inline-date-form');
+    const lbl = el('span', 'harvest-form-label'); lbl.textContent = label;
+    const sel = el('select');
+    sel.className = 'inline-edit-select';
+    families.forEach(fam => {
+      const grp = document.createElement('optgroup');
+      grp.label = fam.name;
+      fam.types.forEach(vt => {
+        const opt = document.createElement('option');
+        opt.value = vt.id; opt.textContent = vt.name;
+        if (vt.id === curId) opt.selected = true;
+        grp.appendChild(opt);
+      });
+      sel.appendChild(grp);
+    });
+    const saveBtn = el('button', 'btn-harvest-confirm');
+    saveBtn.type = 'button'; saveBtn.textContent = '保存';
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      const newId   = parseInt(sel.value);
+      const newName = sel.options[sel.selectedIndex].textContent;
+      try { await onSave(newId); curId = newId; curName = newName; } catch {}
+      showDisplay();
+    });
+    const cancelBtn = el('button', 'btn-harvest-cancel');
+    cancelBtn.type = 'button'; cancelBtn.textContent = 'キャンセル';
+    cancelBtn.addEventListener('click', showDisplay);
+    form.appendChild(lbl); form.appendChild(sel);
+    form.appendChild(saveBtn); form.appendChild(cancelBtn);
+    wrap.appendChild(form);
+  }
+
+  showDisplay();
+  return wrap;
+}
+
 // ── 調整パネル共通ビルダー ─────────────────────────────
 function _buildAdjPanel(title, isOpen, onToggle, buildBody) {
   const panel = el('div', 'adj-panel');
@@ -1192,7 +1343,11 @@ function _mkEdgeGrid(onEdge) {
   return grid;
 }
 
-function _mkPosDisplay(row_start, row_end, col_start, col_end) {
+function _mkPosDisplay(row_start, row_end, col_start, col_end, opts = {}) {
+  const baseRow = opts.baseRow ?? 0;
+  const baseCol = opts.baseCol ?? 0;
+  const showSize = opts.showSize ?? true;
+
   const table = el('div', 'adj-pos-table');
   const kv = (k, v) => {
     const d = el('div', 'adj-pos-kv');
@@ -1201,19 +1356,26 @@ function _mkPosDisplay(row_start, row_end, col_start, col_end) {
     d.appendChild(kEl); d.appendChild(vEl);
     return d;
   };
+
+  const top    = (row_start - baseRow) * 5;
+  const bottom = (row_end   - baseRow + 1) * 5;
+  const left   = (col_start - baseCol) * 5;
+  const right  = (col_end   - baseCol + 1) * 5;
   const h = (row_end - row_start + 1) * 5;
   const w = (col_end - col_start + 1) * 5;
-  table.appendChild(kv('上端', `${row_start * 5}cm`));
-  table.appendChild(kv('縦',   `${h}cm`));
-  table.appendChild(kv('左端', `${col_start * 5}cm`));
-  table.appendChild(kv('横',   `${w}cm`));
+
+  table.appendChild(kv('上端', `${top}cm`));
+  table.appendChild(kv('下端', `${bottom}cm`));
+  table.appendChild(kv('左端', `${left}cm`));
+  table.appendChild(kv('右端', `${right}cm`));
+  if (showSize) table.appendChild(kv('縦×横', `${h}cm × ${w}cm`));
   return table;
 }
 
 function renderBedAdjPanel(bed, dateStr) {
   return _buildAdjPanel('位置・サイズを調整', _adjOpen, v => { _adjOpen = v; }, body => {
     body.parentElement.insertBefore(
-      _mkPosDisplay(bed.row_start, bed.row_end, bed.col_start, bed.col_end),
+      _mkPosDisplay(bed.row_start, bed.row_end, bed.col_start, bed.col_end, {showSize: true}),
       body
     );
     // Move
@@ -1243,11 +1405,15 @@ function renderBedAdjPanel(bed, dateStr) {
   });
 }
 
-function renderCropAdjPanel(crop, bedId, dateStr) {
+function renderCropAdjPanel(crop, bed, bedId, dateStr) {
   return _buildAdjPanel('植わっている範囲を調整', !!_cropAdjOpen[crop.id],
     v => { _cropAdjOpen[crop.id] = v; }, body => {
+      const isIndividual = crop.planting_method === 'individual';
       body.parentElement.insertBefore(
-        _mkPosDisplay(crop.row_start, crop.row_end, crop.col_start, crop.col_end),
+        _mkPosDisplay(crop.row_start, crop.row_end, crop.col_start, crop.col_end, {
+          baseRow: bed.row_start, baseCol: bed.col_start,
+          showSize: !isIndividual,
+        }),
         body
       );
       const moveLbl = el('div', 'adj-group-label'); moveLbl.textContent = '移動（5cm ずつ）';
@@ -1294,7 +1460,7 @@ async function adjCrop(cropId, params, bedId, dateStr) {
   } catch { alert('保存に失敗しました。'); }
 }
 
-function renderCropSection(crop, bedId, dateStr, allCrops) {
+function renderCropSection(crop, bed, bedId, dateStr, allCrops) {
   const section = el('div', 'crop-section');
   // 作物ヘッダー
   const head = el('div', 'crop-section-head');
@@ -1314,12 +1480,46 @@ function renderCropSection(crop, bedId, dateStr, allCrops) {
   }
   head.appendChild(tags);
   section.appendChild(head);
+
+  // 作物名・品種の編集
+  const editBlock = el('div', 'detail-dates');
+  editBlock.appendChild(_mkInlineVegTypeEditor('作物名', crop.vegetable_type_id, crop.name, async (newId) => {
+    const res = await fetch(API_CROP_UPDATE(crop.id), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+      body: JSON.stringify({vegetable_type_id: newId}),
+    });
+    if (!res.ok) throw new Error();
+    await openDetail(bedId, dateStr);
+  }));
+  editBlock.appendChild(_mkInlineTextEditor('品種', crop.variety, '例：桃太郎、大玉など', async (val) => {
+    const res = await fetch(API_CROP_UPDATE(crop.id), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+      body: JSON.stringify({variety: val}),
+    });
+    if (!res.ok) throw new Error();
+  }));
+  section.appendChild(editBlock);
+
   // 日付・進捗
   const dateBlock = el('div', 'detail-dates');
+  dateBlock.appendChild(_mkInlineDateEditor('植え付け', crop.planted_at, async (d) => {
+    const res = await fetch(API_CROP_UPDATE(crop.id), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+      body: JSON.stringify({planted_at: d}),
+    });
+    if (!res.ok) throw new Error();
+  }));
+  const harvLine = el('div', 'inline-date-row');
+  const harvVal = el('span', 'inline-date-val');
   const harv = crop.expected_harvest_date
-    ? `収穫予定 ${crop.expected_harvest_date}`
-    : (crop.harvested_at ? `収穫済 ${crop.harvested_at}` : '収穫日未定');
-  dateBlock.textContent = `植え付け ${crop.planted_at}　／　${harv}`;
+    ? `収穫予定：${crop.expected_harvest_date}`
+    : (crop.harvested_at ? `収穫済：${crop.harvested_at}` : '収穫日未定');
+  harvVal.textContent = harv;
+  harvLine.appendChild(harvVal);
+  dateBlock.appendChild(harvLine);
   if (crop.progress) {
     const pw = el('div', 'progress-wrap');
     const bg = el('div', 'progress-bar-bg');
@@ -1452,7 +1652,7 @@ function renderCropSection(crop, bedId, dateStr, allCrops) {
   section.appendChild(harvestRow);
 
   // 作物の範囲調整パネル
-  section.appendChild(renderCropAdjPanel(crop, bedId, dateStr));
+  section.appendChild(renderCropAdjPanel(crop, bed, bedId, dateStr));
 
   return section;
 }
@@ -1532,7 +1732,7 @@ function renderDetail(data) {
   } else {
     crops.forEach((crop, idx) => {
       if (idx > 0) body.appendChild(el('div', 'crop-divider'));
-      body.appendChild(renderCropSection(crop, data.bed.id, data.date, data.crops));
+      body.appendChild(renderCropSection(crop, data.bed, data.bed.id, data.date, data.crops));
     });
   }
 
@@ -1600,6 +1800,18 @@ function renderDetail(data) {
     plantBtn.textContent = 'この畝に植える';
     plantBtn.addEventListener('click', () => openPlantForm(data.bed, data.date));
     body.appendChild(plantBtn);
+  }
+
+  // 畝立て日のインライン編集
+  if (data.bed.created_at) {
+    body.appendChild(_mkInlineDateEditor('畝立て日', data.bed.created_at, async (d) => {
+      const res = await fetch(API_BED_UPDATE(data.bed.id), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+        body: JSON.stringify({created_at: d}),
+      });
+      if (!res.ok) throw new Error();
+    }));
   }
 
   // 畝の位置・サイズ調整パネル

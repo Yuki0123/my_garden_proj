@@ -20,8 +20,19 @@ class VegetableFamilyAdmin(admin.ModelAdmin):
 
 
 admin.site.register(GardenArea)
-admin.site.register(VegetableType)
+
+
+@admin.register(VegetableType)
+class VegetableTypeAdmin(admin.ModelAdmin):
+    list_display  = ('name', 'family', 'planting_method', 'spacing_cm', 'rotation_years', 'rotation_buffer_cm')
+    list_editable = ('family', 'planting_method', 'spacing_cm', 'rotation_years', 'rotation_buffer_cm')
+    list_filter   = ('family', 'planting_method')
+    ordering      = ('family', 'name')
 admin.site.register(Bed)
-admin.site.register(Crop)
+@admin.register(Crop)
+class CropAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'area', 'status', 'planted_at', 'harvested_at')
+    list_filter  = ('status', 'area')
+    ordering     = ('-planted_at',)
 admin.site.register(SoilStatusArea)
 admin.site.register(MaintenanceLog)

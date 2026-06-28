@@ -17,4 +17,6 @@ urlpatterns = [
     path("api/area/<int:area_id>/bed/add/", views.bed_add_api, name="bed_add_api"),
     path("api/vegetable-types/", views.vegetable_types_api, name="vegetable_types_api"),
     path("api/bed/<int:bed_id>/plant/", views.bed_plant_api, name="bed_plant_api"),
+    path("api/bed/<int:bed_id>/update/", views.bed_update_api, name="bed_update_api"),
+    path("api/crop/<int:crop_id>/update/", views.crop_update_api, name="crop_update_api"),
 ]

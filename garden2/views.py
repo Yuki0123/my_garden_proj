@@ -27,33 +27,44 @@ def _family_colors(family):
 
 
 def _rotation_check(area, crop, year):
-    """作物の座標と過去作物の重複面積から連作リスクを判定する。"""
+    """作物の座標と過去作物の重複面積から連作リスクを判定する。
+    個体植えの場合は rotation_buffer_cm をグリッド単位に変換して影響範囲を拡張する。
+    """
     if not crop:
         return {'level': 'none', 'conflicts': []}
 
     fam = crop.vegetable_type.family
     fam_name = fam.name
-    rot_years = crop.vegetable_type.rotation_years
+    vt = crop.vegetable_type
+    rot_years = vt.rotation_years
     since = date(year - rot_years, 1, 1)
+
+    # 個体植えのみ影響半径を拡張（5cm単位に変換）
+    buffer = vt.rotation_buffer_cm // 5 if vt.planting_method == 'individual' else 0
+
+    rs = crop.row_start - buffer
+    re = crop.row_end   + buffer
+    cs = crop.col_start - buffer
+    ce = crop.col_end   + buffer
 
     past = Crop.objects.filter(
         area=area,
         vegetable_type__family=fam,
         planted_at__gte=since,
         planted_at__lt=date(year, 1, 1),
-        row_start__lte=crop.row_end,
-        row_end__gte=crop.row_start,
-        col_start__lte=crop.col_end,
-        col_end__gte=crop.col_start,
+        row_start__lte=re,
+        row_end__gte=rs,
+        col_start__lte=ce,
+        col_end__gte=cs,
     ).exclude(id=crop.id).select_related('vegetable_type').order_by('-planted_at')
 
-    crop_area = (crop.row_end - crop.row_start + 1) * (crop.col_end - crop.col_start + 1)
+    crop_area = (re - rs + 1) * (ce - cs + 1)
 
     # (year, name) → 最大重複率
     seen: dict[tuple, int] = {}
     for p in past:
-        ov_r = max(0, min(crop.row_end, p.row_end) - max(crop.row_start, p.row_start) + 1)
-        ov_c = max(0, min(crop.col_end, p.col_end) - max(crop.col_start, p.col_start) + 1)
+        ov_r = max(0, min(re, p.row_end) - max(rs, p.row_start) + 1)
+        ov_c = max(0, min(ce, p.col_end) - max(cs, p.col_start) + 1)
         pct = round(ov_r * ov_c / crop_area * 100) if crop_area > 0 else 0
         if pct <= 0:
             continue
@@ -103,6 +114,7 @@ def _serialize_crop(crop):
     fc = _family_colors(family)
     return {
         'id': crop.id,
+        'vegetable_type_id': crop.vegetable_type_id,
         'name': crop.vegetable_type.name,
         'family': family.name,
         'variety': crop.variety or '',
@@ -114,6 +126,7 @@ def _serialize_crop(crop):
         'expected_harvest_date': str(crop.expected_harvest_date) if crop.expected_harvest_date else None,
         'status': crop.status,
         'progress': _progress(crop),
+        'planting_method': crop.vegetable_type.planting_method,
         'row_start': crop.row_start,
         'row_end':   crop.row_end,
         'col_start': crop.col_start,
@@ -382,6 +395,7 @@ def bed_detail_api(request, bed_id):
             'col_start': bed.col_start,
             'row_end': bed.row_end,
             'col_end': bed.col_end,
+            'created_at': str(bed.created_at),
             'deleted_at': str(bed.deleted_at) if bed.deleted_at else None,
         },
         'year': year,
@@ -451,6 +465,44 @@ def harvest_api(request, crop_id):
     crop.harvested_at = harvested_at
     crop.status = 'harvested'
     crop.save(update_fields=['harvested_at', 'status'])
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def bed_update_api(request, bed_id):
+    bed = get_object_or_404(Bed, id=bed_id, area__owner=request.user)
+    body = json.loads(request.body)
+    if 'created_at' in body:
+        try:
+            bed.created_at = datetime.strptime(body['created_at'], '%Y-%m-%d').date()
+            bed.save(update_fields=['created_at'])
+        except ValueError:
+            return JsonResponse({'error': 'invalid date'}, status=400)
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def crop_update_api(request, crop_id):
+    crop = get_object_or_404(Crop, id=crop_id, area__owner=request.user)
+    body = json.loads(request.body)
+    update_fields = []
+    if 'planted_at' in body:
+        try:
+            crop.planted_at = datetime.strptime(body['planted_at'], '%Y-%m-%d').date()
+            update_fields.append('planted_at')
+        except ValueError:
+            return JsonResponse({'error': 'invalid date'}, status=400)
+    if 'variety' in body:
+        crop.variety = body['variety'].strip()
+        update_fields.append('variety')
+    if 'vegetable_type_id' in body:
+        vt = get_object_or_404(VegetableType, id=int(body['vegetable_type_id']))
+        crop.vegetable_type = vt
+        update_fields.append('vegetable_type')
+    if update_fields:
+        crop.save(update_fields=update_fields)
     return JsonResponse({'ok': True})
 
 
