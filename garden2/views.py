@@ -114,6 +114,10 @@ def _serialize_crop(crop):
         'expected_harvest_date': str(crop.expected_harvest_date) if crop.expected_harvest_date else None,
         'status': crop.status,
         'progress': _progress(crop),
+        'row_start': crop.row_start,
+        'row_end':   crop.row_end,
+        'col_start': crop.col_start,
+        'col_end':   crop.col_end,
     }
 
 

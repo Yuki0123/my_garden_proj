@@ -11,8 +11,8 @@ class GardenArea(models.Model):
         verbose_name="オーナー",
     )
     name = models.CharField("エリア名", max_length=100)
-    rows = models.PositiveSmallIntegerField("縦(10cm単位)", default=180)
-    cols = models.PositiveSmallIntegerField("横(10cm単位)", default=70)
+    rows = models.PositiveSmallIntegerField("縦(5cm単位)", default=360)
+    cols = models.PositiveSmallIntegerField("横(5cm単位)", default=140)
 
     def __str__(self):
         return self.name
@@ -56,21 +56,21 @@ class VegetableType(models.Model):
 
     @property
     def spacing_grid(self):
-        return self.spacing_cm // 10
+        return self.spacing_cm // 5
 
     @property
     def rotation_buffer_grid(self):
-        return self.rotation_buffer_cm // 10
+        return self.rotation_buffer_cm // 5
 
 
 class Bed(models.Model):
     area = models.ForeignKey(GardenArea, on_delete=models.CASCADE, related_name="beds")
     name = models.CharField("畝名", max_length=100)
 
-    row_start = models.PositiveSmallIntegerField("開始行(10cm単位)")
-    col_start = models.PositiveSmallIntegerField("開始列(10cm単位)")
-    row_end = models.PositiveSmallIntegerField("終了行(10cm単位)")
-    col_end = models.PositiveSmallIntegerField("終了列(10cm単位)")
+    row_start = models.PositiveSmallIntegerField("開始行(5cm単位)")
+    col_start = models.PositiveSmallIntegerField("開始列(5cm単位)")
+    row_end = models.PositiveSmallIntegerField("終了行(5cm単位)")
+    col_end = models.PositiveSmallIntegerField("終了列(5cm単位)")
 
     created_at = models.DateField("畝立て日", default=timezone.now)
     deleted_at = models.DateField("撤去日", null=True, blank=True)
@@ -92,10 +92,10 @@ class Crop(models.Model):
     )
     variety = models.CharField("品種", max_length=50, blank=True)
 
-    row_start = models.PositiveSmallIntegerField("開始行(10cm単位)")
-    col_start = models.PositiveSmallIntegerField("開始列(10cm単位)")
-    row_end = models.PositiveSmallIntegerField("終了行(10cm単位)")
-    col_end = models.PositiveSmallIntegerField("終了列(10cm単位)")
+    row_start = models.PositiveSmallIntegerField("開始行(5cm単位)")
+    col_start = models.PositiveSmallIntegerField("開始列(5cm単位)")
+    row_end = models.PositiveSmallIntegerField("終了行(5cm単位)")
+    col_end = models.PositiveSmallIntegerField("終了列(5cm単位)")
 
     planted_at = models.DateField("植え付け日")
     expected_harvest_date = models.DateField("収穫予定日", null=True, blank=True)
@@ -126,10 +126,10 @@ class SoilStatusArea(models.Model):
     )
     status_type = models.CharField("状態/作業内容", max_length=20, choices=STATUS_CHOICES)
 
-    row_start = models.PositiveSmallIntegerField("開始行(10cm単位)")
-    col_start = models.PositiveSmallIntegerField("開始列(10cm単位)")
-    row_end = models.PositiveSmallIntegerField("終了行(10cm単位)")
-    col_end = models.PositiveSmallIntegerField("終了列(10cm単位)")
+    row_start = models.PositiveSmallIntegerField("開始行(5cm単位)")
+    col_start = models.PositiveSmallIntegerField("開始列(5cm単位)")
+    row_end = models.PositiveSmallIntegerField("終了行(5cm単位)")
+    col_end = models.PositiveSmallIntegerField("終了列(5cm単位)")
 
     start_date = models.DateField("開始日")
     end_date = models.DateField("終了予定日", null=True, blank=True)
@@ -163,10 +163,10 @@ class MaintenanceLog(models.Model):
         related_name="maintenance_logs",
     )
 
-    row_start = models.PositiveSmallIntegerField("開始行(10cm単位)", null=True, blank=True)
-    col_start = models.PositiveSmallIntegerField("開始列(10cm単位)", null=True, blank=True)
-    row_end = models.PositiveSmallIntegerField("終了行(10cm単位)", null=True, blank=True)
-    col_end = models.PositiveSmallIntegerField("終了列(10cm単位)", null=True, blank=True)
+    row_start = models.PositiveSmallIntegerField("開始行(5cm単位)", null=True, blank=True)
+    col_start = models.PositiveSmallIntegerField("開始列(5cm単位)", null=True, blank=True)
+    row_end = models.PositiveSmallIntegerField("終了行(5cm単位)", null=True, blank=True)
+    col_end = models.PositiveSmallIntegerField("終了列(5cm単位)", null=True, blank=True)
 
     note = models.TextField("メモ", blank=True)
     worked_at = models.DateTimeField("実施日時", default=timezone.now)

@@ -2,16 +2,16 @@
 
 ## プロジェクト概要
 
-Djangoベースの畑管理アプリ。個人の農地（7m×18m）を10cm単位のグリッドで管理する。
+Djangoベースの畑管理アプリ。個人の農地（7m×17m）を5cm単位のグリッドで管理する。
 ConoHa VPS（Nginx + Gunicorn + PostgreSQL）にデプロイ済み。GitHub Actions CI/CD。
 
 ---
 
 ## フィールド仕様
 
-- **広さ**: 7m × 18m（70マス × 180マス、10cm単位）
-- **畝**: 幅80cm（8マス）、畝間40cm（4マス）、計15本
-- **畝方向**: 18m方向に並ぶ、各畝の長さ7m
+- **広さ**: 7m × 17m（140マス × 340マス、5cm単位）
+- **畝**: 幅80cm（16マス）、畝間40cm（8マス）、計15本
+- **畝方向**: 17m方向に並ぶ、各畝の長さ7m
 
 ---
 
@@ -20,7 +20,7 @@ ConoHa VPS（Nginx + Gunicorn + PostgreSQL）にデプロイ済み。GitHub Acti
 ### 最重要：Plotテーブルを廃止する
 
 旧設計では`Plot`（10cm×10cmの最小単位）をDBレコードとして持っていたが、
-7m×18m = 1,260レコードがエリアごとに生成されて無駄が多い。
+7m×17m = 1,190レコードがエリアごとに生成されて無駄が多い。
 
 **新方針：座標を4整数で持つ**
 
@@ -31,8 +31,8 @@ row_end   = models.PositiveSmallIntegerField()
 col_end   = models.PositiveSmallIntegerField()
 ```
 
-- 単位は10cm（例：50cm = 5マス）
-- `PositiveSmallIntegerField`で十分（最大32767、180マスに対して余裕あり）
+- 単位は5cm（例：50cm = 10マス）
+- `PositiveSmallIntegerField`で十分（最大32767、340マスに対して余裕あり）
 - `Bed`もAreaの中の座標範囲として同じ方式で表現
 
 ### 各モデルの座標フィールド
@@ -84,7 +84,7 @@ rotation_buffer_cm = models.PositiveSmallIntegerField("影響半径(cm)", defaul
 
 ```python
 def get_rotation_warnings(area, veg_type, row_start, col_start, row_end, col_end):
-    buffer = veg_type.rotation_buffer_cm // 10  # cmをマスに変換
+    buffer = veg_type.rotation_buffer_cm // 5  # cmをマスに変換
     years  = veg_type.rotation_years
     since  = date.today() - timedelta(days=365 * years)
 
@@ -137,7 +137,7 @@ UIのフローも植え付け方法で分岐する：
 ### 2モード構成
 
 1. **俯瞰モード**（全体ビュー）
-   - 4pxセルで7m×18mを全体表示
+   - 4pxセルで7m×17mを全体表示
    - 作物のある場所を野菜ごとの色で表示（何が植わってるかわかる）
    - 畝をクリックで編集モードへ
 
