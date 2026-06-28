@@ -1789,18 +1789,45 @@ function renderDetail(data) {
     histTitle.textContent = 'この畝の履歴';
     const histCells = el('div', 'history-cells');
     data.history.forEach(h => {
+      const crops = h.crops || [];
       const cell = el('div', 'history-cell');
-      if (h.family_color) {
-        cell.style.cssText = `background:${h.family_tint};border:${h.is_current ? `2px solid var(--accent)` : `1px solid ${h.family_color}40`}`;
+
+      // 1作物かつ全面なら科のtintを背景に、それ以外はニュートラル
+      if (crops.length === 1 && !crops[0].is_partial) {
+        const c = crops[0];
+        cell.style.cssText = `background:${c.family_tint};border:${h.is_current ? `2px solid var(--accent)` : `1px solid ${c.family_color}40`}`;
       } else {
         cell.style.cssText = `background:#f1ecdd;border:${h.is_current ? '2px solid var(--accent)' : '1.5px dashed #cfc8b4'}`;
       }
+
       const yr = el('div', 'history-year');
       yr.textContent = `${h.year}年`;
-      const nm = el('div', 'history-name');
-      nm.textContent = h.crop_name || '空き';
-      nm.style.color = h.family_color || '#a89e84';
-      cell.appendChild(yr); cell.appendChild(nm);
+      cell.appendChild(yr);
+
+      if (crops.length === 0) {
+        const nm = el('div', 'history-name');
+        nm.textContent = '空き';
+        nm.style.color = '#a89e84';
+        cell.appendChild(nm);
+      } else {
+        crops.forEach(c => {
+          const row = el('div', 'history-crop-row');
+          const dot = el('span', 'history-crop-dot');
+          dot.style.background = c.family_color;
+          const nm = el('span', 'history-crop-name');
+          nm.textContent = c.name;
+          nm.style.color = c.family_color;
+          row.appendChild(dot);
+          row.appendChild(nm);
+          if (c.is_partial) {
+            const partial = el('span', 'history-crop-partial');
+            partial.textContent = `${c.overlap_pct}%`;
+            row.appendChild(partial);
+          }
+          cell.appendChild(row);
+        });
+      }
+
       histCells.appendChild(cell);
     });
     histSec.appendChild(histTitle); histSec.appendChild(histCells);

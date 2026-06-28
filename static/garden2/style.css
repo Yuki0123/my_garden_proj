@@ -370,6 +370,10 @@ html,body{height:100%;background:#e8e0ce;font-family:'Zen Kaku Gothic New',sans-
 }
 .history-year{font-size:10px;color:#a79e88;margin-bottom:4px;font-weight:600}
 .history-name{font-family:'Shippori Mincho',serif;font-size:12.5px;font-weight:700}
+.history-crop-row{display:flex;align-items:center;gap:4px;justify-content:center;margin-top:2px}
+.history-crop-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.history-crop-name{font-family:'Shippori Mincho',serif;font-size:12px;font-weight:700}
+.history-crop-partial{font-size:9px;color:#a79e88;font-weight:600}
 
 .log-list{display:flex;flex-direction:column}
 .log-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #ece5d3}
