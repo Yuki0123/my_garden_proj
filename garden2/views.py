@@ -198,7 +198,7 @@ def state_api(request, area_id):
         area=area,
         planted_at__lte=target_date,
     ).filter(
-        Q(harvested_at__isnull=True) | Q(harvested_at__gte=target_date)
+        Q(harvested_at__isnull=True) | Q(harvested_at__gt=target_date)
     ).select_related('vegetable_type', 'vegetable_type__family').order_by('planted_at')
     crops_list = list(crops)
 
@@ -340,7 +340,7 @@ def bed_detail_api(request, bed_id):
         col_start__lte=bed.col_end,
         col_end__gte=bed.col_start,
     ).filter(
-        Q(harvested_at__isnull=True) | Q(harvested_at__gte=target_date)
+        Q(harvested_at__isnull=True) | Q(harvested_at__gt=target_date)
     ).select_related('vegetable_type', 'vegetable_type__family').order_by('planted_at')
 
     # 作物ごとに連作チェックを付与
@@ -363,7 +363,7 @@ def bed_detail_api(request, bed_id):
             col_start__lte=bed.col_end,
             col_end__gte=bed.col_start,
         ).filter(
-            Q(harvested_at__isnull=True) | Q(harvested_at__gte=hist_date)
+            Q(harvested_at__isnull=True) | Q(harvested_at__gt=hist_date)
         ).select_related('vegetable_type', 'vegetable_type__family').order_by('planted_at').first()
         family = c.vegetable_type.family if c else None
         fc = _family_colors(family) if family else None
