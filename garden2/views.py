@@ -208,7 +208,7 @@ def state_api(request, area_id):
         area=area,
         created_at__lte=target_date,
     ).filter(
-        Q(deleted_at__isnull=True) | Q(deleted_at__gte=target_date)
+        Q(deleted_at__isnull=True) | Q(deleted_at__gt=target_date)
     ).order_by('row_start', 'col_start')
 
     crops = Crop.objects.filter(
