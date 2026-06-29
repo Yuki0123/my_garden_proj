@@ -19,7 +19,15 @@ class VegetableFamilyAdmin(admin.ModelAdmin):
         )
 
 
-admin.site.register(GardenArea)
+@admin.register(GardenArea)
+class GardenAreaAdmin(admin.ModelAdmin):
+    list_display  = ('name', 'owner', 'member_list')
+    filter_horizontal = ('members',)
+
+    @admin.display(description='共有メンバー')
+    def member_list(self, obj):
+        names = [u.username for u in obj.members.all()]
+        return '、'.join(names) if names else '—'
 
 
 @admin.register(VegetableType)

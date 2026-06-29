@@ -10,6 +10,12 @@ class GardenArea(models.Model):
         related_name="garden2_areas",
         verbose_name="オーナー",
     )
+    members = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="shared_garden2_areas",
+        verbose_name="共有メンバー",
+    )
     name = models.CharField("エリア名", max_length=100)
     rows = models.PositiveSmallIntegerField("縦(5cm単位)", default=360)
     cols = models.PositiveSmallIntegerField("横(5cm単位)", default=140)

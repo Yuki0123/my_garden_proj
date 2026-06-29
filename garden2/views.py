@@ -9,6 +9,23 @@ from django.views.decorators.http import require_POST
 
 from .models import Bed, Crop, GardenArea, MaintenanceLog, VegetableFamily, VegetableType
 
+def _area_qs(user):
+    """オーナーまたは共有メンバーとしてアクセスできる GardenArea QS"""
+    return GardenArea.objects.filter(Q(owner=user) | Q(members=user)).distinct()
+
+
+def _get_area(area_id, user):
+    return get_object_or_404(_area_qs(user), id=area_id)
+
+
+def _get_bed(bed_id, user):
+    return get_object_or_404(Bed, id=bed_id, area__in=_area_qs(user))
+
+
+def _get_crop(crop_id, user):
+    return get_object_or_404(Crop, id=crop_id, area__in=_area_qs(user))
+
+
 def _tint(hex_color):
     """16進カラーコードから薄い背景色（tint）を生成する。"""
     hex_color = hex_color.lstrip('#')
@@ -144,7 +161,7 @@ def _crops_in_bed(bed, crop_list):
 
 @login_required
 def index(request):
-    areas = GardenArea.objects.filter(owner=request.user)
+    areas = _area_qs(request.user)
     return render(request, 'garden2/index.html', {
         'areas': areas,
         'today': str(date.today()),
@@ -184,7 +201,7 @@ def state_api(request, area_id):
         target_date = today if year == today.year else date(year, 12, 31)
 
     year = target_date.year
-    area = get_object_or_404(GardenArea, id=area_id, owner=request.user)
+    area = _get_area(area_id, request.user)
 
     # 特定日付でスナップショット（重複なし）
     beds = Bed.objects.filter(
@@ -238,7 +255,7 @@ def year_dates_api(request, area_id):
     except ValueError:
         year = today.year
 
-    area = get_object_or_404(GardenArea, id=area_id, owner=request.user)
+    area = _get_area(area_id, request.user)
     year_start = date(year, 1, 1)
     year_end = date(year, 12, 31)
     cutoff = min(year_end, today)
@@ -328,7 +345,7 @@ def bed_detail_api(request, bed_id):
 
     year = target_date.year
 
-    bed = get_object_or_404(Bed, id=bed_id, area__owner=request.user)
+    bed = _get_bed(bed_id, request.user)
     area = bed.area
 
     # state_api と同じ日付ベースフィルタで、その日に有効な作物を取得
@@ -421,7 +438,7 @@ def bed_detail_api(request, bed_id):
 @login_required
 @require_POST
 def log_api(request, bed_id):
-    bed = get_object_or_404(Bed, id=bed_id, area__owner=request.user)
+    bed = _get_bed(bed_id, request.user)
     try:
         body = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
@@ -462,7 +479,7 @@ def log_api(request, bed_id):
 @login_required
 @require_POST
 def harvest_api(request, crop_id):
-    crop = get_object_or_404(Crop, id=crop_id, area__owner=request.user)
+    crop = _get_crop(crop_id, request.user)
     try:
         body = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
@@ -483,7 +500,7 @@ def harvest_api(request, crop_id):
 @login_required
 @require_POST
 def bed_update_api(request, bed_id):
-    bed = get_object_or_404(Bed, id=bed_id, area__owner=request.user)
+    bed = _get_bed(bed_id, request.user)
     body = json.loads(request.body)
     if 'created_at' in body:
         try:
@@ -497,7 +514,7 @@ def bed_update_api(request, bed_id):
 @login_required
 @require_POST
 def crop_update_api(request, crop_id):
-    crop = get_object_or_404(Crop, id=crop_id, area__owner=request.user)
+    crop = _get_crop(crop_id, request.user)
     body = json.loads(request.body)
     update_fields = []
     if 'planted_at' in body:
@@ -521,7 +538,7 @@ def crop_update_api(request, crop_id):
 @login_required
 @require_POST
 def bed_remove_api(request, bed_id):
-    bed = get_object_or_404(Bed, id=bed_id, area__owner=request.user)
+    bed = _get_bed(bed_id, request.user)
     try:
         body = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
@@ -541,7 +558,7 @@ def bed_remove_api(request, bed_id):
 @login_required
 @require_POST
 def bed_adjust_api(request, bed_id):
-    bed = get_object_or_404(Bed, id=bed_id, area__owner=request.user)
+    bed = _get_bed(bed_id, request.user)
     body = json.loads(request.body)
     dr  = int(body.get('dr',  0))
     dc  = int(body.get('dc',  0))
@@ -583,7 +600,7 @@ def bed_adjust_api(request, bed_id):
 @login_required
 @require_POST
 def crop_adjust_api(request, crop_id):
-    crop = get_object_or_404(Crop, id=crop_id, area__owner=request.user)
+    crop = _get_crop(crop_id, request.user)
     body = json.loads(request.body)
     dr  = int(body.get('dr',  0))
     dc  = int(body.get('dc',  0))
@@ -630,7 +647,7 @@ def vegetable_types_api(request):
 @login_required
 @require_POST
 def bed_plant_api(request, bed_id):
-    bed = get_object_or_404(Bed, id=bed_id, area__owner=request.user)
+    bed = _get_bed(bed_id, request.user)
     body = json.loads(request.body)
 
     vt = get_object_or_404(VegetableType, id=int(body['vegetable_type_id']))
@@ -671,7 +688,7 @@ def bed_plant_api(request, bed_id):
 @login_required
 def day_actions_api(request, area_id):
     """指定日付にあった作業（畝の新設・撤去、作物の植付・収穫）を畝ごとにまとめて返す。"""
-    area = get_object_or_404(GardenArea, id=area_id, owner=request.user)
+    area = _get_area(area_id, request.user)
     date_str = request.GET.get('date')
     try:
         target_date = date.fromisoformat(date_str) if date_str else date.today()
@@ -742,7 +759,7 @@ def day_actions_api(request, area_id):
 @login_required
 @require_POST
 def bed_add_api(request, area_id):
-    area = get_object_or_404(GardenArea, id=area_id, owner=request.user)
+    area = _get_area(area_id, request.user)
     body = json.loads(request.body)
 
     name = body.get('name', '').strip()
